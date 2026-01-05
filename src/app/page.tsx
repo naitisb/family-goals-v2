@@ -1372,17 +1372,17 @@ function SettingsModal({ onClose, family, members, currentMember, onUpdate }: {
           {/* Exercises Tab */}
           {tab === 'exercises' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-white/70 text-sm">
-                  Custom exercise activities for the family
+              <div className="mb-4">
+                <p className="text-white/70 text-sm mb-4">
+                  Create custom exercise activities available to all family members when logging exercise.
                 </p>
                 {!addingExercise && (
                   <button
                     onClick={() => setAddingExercise(true)}
-                    className="text-violet-400 text-sm hover:text-violet-300 flex items-center gap-1"
+                    className="btn-primary w-full flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-4 h-4" />
-                    Add Exercise
+                    <Plus className="w-5 h-5" />
+                    Add New Exercise Activity
                   </button>
                 )}
               </div>
@@ -1834,10 +1834,37 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [assignToMemberId, setAssignToMemberId] = useState('')
   const [assignGoalError, setAssignGoalError] = useState('')
 
+  // Goal organization
+  const [goalOrganization, setGoalOrganization] = useState<'frequency' | 'area' | 'time'>('frequency')
+
   const isOwnProfile = member.id === currentMember.id
   const customGoals = goals.filter(g => g.type === 'custom' && g.is_custom)
   const dailyCustomGoals = customGoals.filter(g => g.frequency === 'daily')
   const weeklyCustomGoals = customGoals.filter(g => g.frequency === 'weekly')
+
+  // Organize goals based on selected mode
+  const organizeGoals = (goalsList: Goal[]) => {
+    if (goalOrganization === 'area') {
+      // Group by goal area
+      const grouped: { [key: string]: Goal[] } = {}
+      goalsList.forEach(goal => {
+        const area = goal.goal_area || 'other'
+        if (!grouped[area]) grouped[area] = []
+        grouped[area].push(goal)
+      })
+      return grouped
+    } else if (goalOrganization === 'time') {
+      // Sort by due time
+      return [...goalsList].sort((a, b) => {
+        if (!a.due_time && !b.due_time) return 0
+        if (!a.due_time) return 1
+        if (!b.due_time) return -1
+        return a.due_time.localeCompare(b.due_time)
+      })
+    }
+    // Default: by frequency (already filtered)
+    return goalsList
+  }
 
   const loadData = async () => {
     try {
@@ -2250,12 +2277,52 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           </div>
         </div>
 
-        {/* Daily Goals */}
+        {/* Goal Organization Selector */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-amber-400" />
-            Daily Goals
-          </h3>
+          <label className="block text-white/70 text-sm mb-2">Organize Goals By</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setGoalOrganization('frequency')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                goalOrganization === 'frequency'
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              Frequency
+            </button>
+            <button
+              onClick={() => setGoalOrganization('area')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                goalOrganization === 'area'
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              Category
+            </button>
+            <button
+              onClick={() => setGoalOrganization('time')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                goalOrganization === 'time'
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              Time
+            </button>
+          </div>
+        </div>
+
+        {/* Goals Display - Organized by Selected Mode */}
+        {goalOrganization === 'frequency' && (
+          <>
+            {/* Daily Goals */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-amber-400" />
+                Daily Goals
+              </h3>
           <div className="space-y-3">
             {dailyGoals.filter(g => g.type !== 'water' && g.type !== 'exercise').map((goal) => (
               <motion.div
@@ -2457,6 +2524,136 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                 </motion.div>
               ))}
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* By Category */}
+        {goalOrganization === 'area' && (
+          <div className="space-y-6">
+            {Object.entries(organizeGoals(goals.filter(g => g.type !== 'water' && g.type !== 'exercise')) as { [key: string]: Goal[] }).map(([areaId, areaGoals]) => {
+              const areaInfo = GOAL_AREAS.find(a => a.id === areaId) || GOAL_AREAS.find(a => a.id === 'other')!
+              return (
+                <div key={areaId}>
+                  <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                    <span>{areaInfo.icon}</span>
+                    {areaInfo.label}
+                  </h3>
+                  <div className="space-y-3">
+                    {areaGoals.map((goal) => (
+                      <motion.div
+                        key={goal.id}
+                        className={`glass rounded-xl p-4 flex items-center gap-4 ${goal.is_completed ? 'bg-emerald-500/10' : ''}`}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <button
+                          onClick={() => isOwnProfile && toggleGoal(goal)}
+                          disabled={!isOwnProfile}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                            goal.is_completed
+                              ? 'bg-emerald-500 text-white'
+                              : 'border-2 border-white/30 hover:border-emerald-500'
+                          }`}
+                        >
+                          {goal.is_completed && <Check className="w-5 h-5" />}
+                        </button>
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
+                                {goal.title}
+                              </p>
+                              {goal.description && (
+                                <p className="text-white/50 text-sm">{goal.description}</p>
+                              )}
+                              {goal.type === 'assigned' && goal.assigned_by_name && (
+                                <p className="text-violet-400 text-xs mt-1">
+                                  From {goal.assigned_by_name}
+                                </p>
+                              )}
+                              <p className="text-white/40 text-xs mt-1 capitalize">{goal.frequency}</p>
+                            </div>
+                            {(goal.member_id === currentMember.id || goal.assigned_by === currentMember.id) && (
+                              <button
+                                onClick={() => openEditGoalModal(goal)}
+                                className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
+                                title="Edit goal"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* By Time */}
+        {goalOrganization === 'time' && (
+          <div className="space-y-3">
+            {(organizeGoals(goals.filter(g => g.type !== 'water' && g.type !== 'exercise')) as Goal[]).map((goal) => (
+              <motion.div
+                key={goal.id}
+                className={`glass rounded-xl p-4 flex items-center gap-4 ${goal.is_completed ? 'bg-emerald-500/10' : ''}`}
+                whileTap={{ scale: 0.98 }}
+              >
+                <button
+                  onClick={() => isOwnProfile && toggleGoal(goal)}
+                  disabled={!isOwnProfile}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    goal.is_completed
+                      ? 'bg-emerald-500 text-white'
+                      : 'border-2 border-white/30 hover:border-emerald-500'
+                  }`}
+                >
+                  {goal.is_completed && <Check className="w-5 h-5" />}
+                </button>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        {goal.due_time && (
+                          <span className="text-violet-400 text-sm font-medium flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {goal.due_time}
+                          </span>
+                        )}
+                        {!goal.due_time && (
+                          <span className="text-white/40 text-sm">No time set</span>
+                        )}
+                      </div>
+                      <p className={`font-medium mt-1 ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
+                        {goal.title}
+                      </p>
+                      {goal.description && (
+                        <p className="text-white/50 text-sm">{goal.description}</p>
+                      )}
+                      {goal.type === 'assigned' && goal.assigned_by_name && (
+                        <p className="text-violet-400 text-xs mt-1">
+                          From {goal.assigned_by_name}
+                        </p>
+                      )}
+                      <p className="text-white/40 text-xs mt-1 capitalize">{goal.frequency}</p>
+                    </div>
+                    {(goal.member_id === currentMember.id || goal.assigned_by === currentMember.id) && (
+                      <button
+                        onClick={() => openEditGoalModal(goal)}
+                        className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
+                        title="Edit goal"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>
