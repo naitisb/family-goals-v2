@@ -12,6 +12,19 @@ import {
 import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
 import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit, convertWaterToMl } from '@/lib/utils'
 
+// Goal Areas
+const GOAL_AREAS = [
+  { id: 'health', label: 'Health & Fitness', icon: '💪' },
+  { id: 'learning', label: 'Learning & Growth', icon: '📚' },
+  { id: 'family', label: 'Family & Relationships', icon: '👨‍👩‍👧‍👦' },
+  { id: 'work', label: 'Work & Career', icon: '💼' },
+  { id: 'creativity', label: 'Creativity & Hobbies', icon: '🎨' },
+  { id: 'wellbeing', label: 'Mindfulness & Wellbeing', icon: '🧘' },
+  { id: 'household', label: 'Household & Chores', icon: '🏠' },
+  { id: 'finance', label: 'Finance & Savings', icon: '💰' },
+  { id: 'other', label: 'Other', icon: '📌' }
+]
+
 // API Helper
 const api = {
   token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
@@ -1783,7 +1796,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
 
   // Water goal settings
   const waterGoal = goals.find(g => g.type === 'water')
-  const [waterTarget, setWaterTarget] = useState(waterGoal?.target_value || 2000)
+  const [waterTarget, setWaterTarget] = useState(waterGoal?.target_value || 3000)
   const [waterUnit, setWaterUnit] = useState(waterGoal?.target_unit || 'ml')
   const [waterError, setWaterError] = useState('')
 
@@ -1803,6 +1816,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [goalTitle, setGoalTitle] = useState('')
   const [goalDescription, setGoalDescription] = useState('')
   const [goalFrequency, setGoalFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [goalArea, setGoalArea] = useState('')
   const [goalDueTime, setGoalDueTime] = useState('')
   const [goalReminderEnabled, setGoalReminderEnabled] = useState(false)
   const [goalReminderTime, setGoalReminderTime] = useState('')
@@ -1813,6 +1827,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [assignGoalTitle, setAssignGoalTitle] = useState('')
   const [assignGoalDescription, setAssignGoalDescription] = useState('')
   const [assignGoalFrequency, setAssignGoalFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [assignGoalArea, setAssignGoalArea] = useState('')
   const [assignGoalDueTime, setAssignGoalDueTime] = useState('')
   const [assignGoalReminderEnabled, setAssignGoalReminderEnabled] = useState(false)
   const [assignGoalReminderTime, setAssignGoalReminderTime] = useState('')
@@ -1891,6 +1906,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     setGoalTitle(goal.title)
     setGoalDescription(goal.description || '')
     setGoalFrequency(goal.frequency)
+    setGoalArea(goal.goal_area || '')
     setGoalDueTime(goal.due_time || '')
     setGoalReminderEnabled(goal.reminder_enabled)
     setGoalReminderTime(goal.reminder_time || '')
@@ -1917,6 +1933,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           title: goalTitle,
           description: goalDescription || null,
           frequency: goalFrequency,
+          goal_area: goalArea || null,
           due_time: goalDueTime || null,
           reminder_enabled: goalReminderEnabled,
           reminder_time: goalReminderTime || null
@@ -1928,6 +1945,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           title: goalTitle,
           description: goalDescription || null,
           frequency: goalFrequency,
+          goal_area: goalArea || null,
           due_time: goalDueTime || null,
           reminder_enabled: goalReminderEnabled,
           reminder_time: goalReminderTime || null
@@ -1991,6 +2009,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
         title: assignGoalTitle,
         description: assignGoalDescription || null,
         frequency: assignGoalFrequency,
+        goal_area: assignGoalArea || null,
         due_time: assignGoalDueTime || null,
         reminder_enabled: assignGoalReminderEnabled,
         reminder_time: assignGoalReminderTime || null,
@@ -2276,13 +2295,15 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                         </span>
                       )}
                     </div>
-                    <button
-                      onClick={() => openEditGoalModal(goal)}
-                      className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
-                      title="Edit goal"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                    {(goal.member_id === currentMember.id || goal.assigned_by === currentMember.id) && (
+                      <button
+                        onClick={() => openEditGoalModal(goal)}
+                        className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
+                        title="Edit goal"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -2332,20 +2353,22 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                           <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
                             {goal.title}
                           </p>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => openEditGoalModal(goal)}
-                              className="text-violet-400 hover:text-violet-300 p-1"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteGoal(goal.id)}
-                              className="text-red-400 hover:text-red-300 p-1"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {isOwnProfile && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => openEditGoalModal(goal)}
+                                className="text-violet-400 hover:text-violet-300 p-1"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteGoal(goal.id)}
+                                className="text-red-400 hover:text-red-300 p-1"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                         {goal.description && (
                           <p className="text-white/50 text-sm mt-1">{goal.description}</p>
@@ -2420,13 +2443,15 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => openEditGoalModal(goal)}
-                        className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
-                        title="Edit goal"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      {(goal.member_id === currentMember.id || goal.assigned_by === currentMember.id) && (
+                        <button
+                          onClick={() => openEditGoalModal(goal)}
+                          className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
+                          title="Edit goal"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -2737,6 +2762,22 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                 </div>
 
                 <div>
+                  <label className="block text-white/70 text-sm mb-2">Goal Area (optional)</label>
+                  <select
+                    value={goalArea}
+                    onChange={(e) => setGoalArea(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Select a category...</option>
+                    {GOAL_AREAS.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.icon} {area.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-white/70 text-sm mb-2">Frequency</label>
                   <div className="flex gap-2">
                     <button
@@ -2996,6 +3037,22 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                     rows={3}
                     maxLength={500}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Goal Area (optional)</label>
+                  <select
+                    value={assignGoalArea}
+                    onChange={(e) => setAssignGoalArea(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Select a category...</option>
+                    {GOAL_AREAS.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.icon} {area.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       target_unit,
       assigned_by,
       frequency = 'daily',
+      goal_area,
       due_time,
       reminder_enabled,
       reminder_time
@@ -46,8 +47,8 @@ export async function POST(request: NextRequest) {
 
     const goalId = uuidv4()
     await executeQuery(
-      `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, assigned_by, is_custom, frequency, due_time, reminder_enabled, reminder_time)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, assigned_by, is_custom, frequency, goal_area, due_time, reminder_enabled, reminder_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         goalId,
         memberId,
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
         assigned_by || null,
         type === 'custom' ? 1 : 0,
         frequency,
+        goal_area || null,
         due_time || null,
         reminder_enabled ? 1 : 0,
         reminder_time || null

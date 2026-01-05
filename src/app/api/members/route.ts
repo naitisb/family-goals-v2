@@ -61,9 +61,10 @@ export async function POST(request: NextRequest) {
     )
 
     // Create default goals for new member
+    // Default water target: 3L (3000ml) - general adult recommendation
     await executeQuery(
       `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, frequency)
-       VALUES (?, ?, 'water', 'Drink Water', 'Stay hydrated!', 2000, 'ml', 'daily')`,
+       VALUES (?, ?, 'water', 'Drink Water', 'Recommended daily intake: Men 3.7L, Women 2.7L, Teens 2-3L, Children 1-2L (source: Mayo Clinic)', 3000, 'ml', 'daily')`,
       [uuidv4(), memberId]
     )
 

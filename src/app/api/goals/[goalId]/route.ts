@@ -60,6 +60,10 @@ export async function PUT(
       updateFields.push('frequency = ?')
       values.push(updates.frequency)
     }
+    if (updates.goal_area !== undefined) {
+      updateFields.push('goal_area = ?')
+      values.push(updates.goal_area)
+    }
 
     if (updateFields.length > 0) {
       values.push(goalId)

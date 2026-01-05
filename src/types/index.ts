@@ -30,6 +30,7 @@ export interface Goal {
   assigned_by_color?: string
   is_custom: boolean
   frequency: 'daily' | 'weekly'
+  goal_area?: string
   due_time?: string
   reminder_enabled: boolean
   reminder_time?: string

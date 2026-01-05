@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS goals (
   assigned_by TEXT,
   is_custom INTEGER DEFAULT 0,
   frequency TEXT DEFAULT 'daily',
+  goal_area TEXT,
   due_time TEXT,
   reminder_enabled INTEGER DEFAULT 0,
   reminder_time TEXT,
@@ -209,6 +210,21 @@ export async function initializeSchema() {
       }
     }
   }
+
+  // Run migrations
+  await runMigrations()
+
   return { success: true }
+}
+
+async function runMigrations() {
+  const client = getDb()
+
+  // Add goal_area column if it doesn't exist
+  try {
+    await client.execute('ALTER TABLE goals ADD COLUMN goal_area TEXT')
+  } catch (error: unknown) {
+    // Column already exists, ignore
+  }
 }
 

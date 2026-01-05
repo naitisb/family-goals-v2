@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
       // Get water goal target
       const waterGoal = goals.find(g => g.type === 'water')
-      const waterTarget = waterGoal?.target_value || 2000
+      const waterTarget = waterGoal?.target_value || 3000
 
       // Count completions
       const dailyGoals = goalsWithCompletion.filter(g => g.frequency !== 'weekly')

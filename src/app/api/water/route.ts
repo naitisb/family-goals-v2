@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       entries,
       total: totalResult?.total || 0,
-      target: waterGoal?.target_value || 2000,
+      target: waterGoal?.target_value || 3000,
       unit: waterGoal?.target_unit || 'ml'
     })
   } catch (error) {
