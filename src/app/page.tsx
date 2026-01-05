@@ -1,0 +1,1190 @@
+'use client'
+
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Droplets, Dumbbell, Target, Check, Plus, Minus,
+  LogOut, Users, User, Lock, Eye, EyeOff, ChevronRight,
+  Edit3, X, Home, Settings, Palette, ChevronLeft, Bell,
+  Clock, Trash2, Calendar, BarChart3
+} from 'lucide-react'
+import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
+import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit } from '@/lib/utils'
+
+// API Helper
+const api = {
+  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+
+  setToken(token: string | null) {
+    this.token = token
+    if (typeof window !== 'undefined') {
+      if (token) {
+        localStorage.setItem('token', token)
+      } else {
+        localStorage.removeItem('token')
+      }
+    }
+  },
+
+  async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    }
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`
+    }
+    
+    const res = await fetch(`/api${endpoint}`, { ...options, headers })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Request failed')
+    }
+    return res.json()
+  },
+
+  post<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.fetch(endpoint, { method: 'POST', body: JSON.stringify(data) })
+  },
+
+  put<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.fetch(endpoint, { method: 'PUT', body: JSON.stringify(data) })
+  },
+
+  delete<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.fetch(endpoint, { method: 'DELETE', body: data ? JSON.stringify(data) : undefined })
+  }
+}
+
+// Auth Context
+interface AuthContextType {
+  family: { id: string; name: string } | null
+  members: Member[]
+  currentMember: Member | null
+  settings: FamilySettings | null
+  refreshSettings: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | null>(null)
+const useAuth = () => useContext(AuthContext)
+
+// Animation variants
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+  exit: { opacity: 0, y: -20, transition: { duration: 0.3 } }
+}
+
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 }
+}
+
+// Components
+function WaterGlass({ percentage }: { percentage: number }) {
+  const clampedPercentage = Math.min(100, Math.max(0, percentage))
+  return (
+    <div className="relative w-24 h-28 mx-auto">
+      <svg viewBox="0 0 100 120" className="w-full h-full">
+        <path
+          d="M15 10 L85 10 L80 110 Q50 120 20 110 Z"
+          fill="rgba(255,255,255,0.1)"
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth="2"
+        />
+        <clipPath id="glassClip">
+          <path d="M17 12 L83 12 L78 108 Q50 116 22 108 Z" />
+        </clipPath>
+        <rect
+          x="0"
+          y={120 - (clampedPercentage * 1.08)}
+          width="100"
+          height={clampedPercentage * 1.08}
+          fill="url(#waterGradient)"
+          clipPath="url(#glassClip)"
+          className="water-fill"
+        />
+        <defs>
+          <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#0284c7" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-white font-bold text-lg">{Math.round(clampedPercentage)}%</span>
+      </div>
+    </div>
+  )
+}
+
+function ProgressRing({ progress, size = 100, strokeWidth = 8, color = '#8b5cf6' }: {
+  progress: number
+  size?: number
+  strokeWidth?: number
+  color?: string
+}) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (Math.min(100, progress) / 100) * circumference
+
+  return (
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="transparent"
+        stroke="rgba(255,255,255,0.1)"
+        strokeWidth={strokeWidth}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="transparent"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        className="progress-ring-circle"
+      />
+    </svg>
+  )
+}
+
+// Login Screen
+function LoginScreen({ onLogin }: { onLogin: (family: { id: string; name: string }, members: Member[]) => void }) {
+  const [isRegister, setIsRegister] = useState(false)
+  const [familyName, setFamilyName] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [members, setMembers] = useState([
+    { name: '', pin: '', avatarColor: AVATAR_COLORS[5] },
+    { name: '', pin: '', avatarColor: AVATAR_COLORS[11] }
+  ])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      if (isRegister) {
+        if (members.some(m => !m.name || m.pin.length !== 4)) {
+          throw new Error('All family members need a name and 4-digit PIN')
+        }
+        const result = await api.post<{ token: string; family: { id: string; name: string }; members: Member[] }>(
+          '/auth/register',
+          { familyName, password, members }
+        )
+        api.setToken(result.token)
+        onLogin(result.family, result.members)
+      } else {
+        const result = await api.post<{ token: string; family: { id: string; name: string }; members: Member[] }>(
+          '/auth/login',
+          { familyName, password }
+        )
+        api.setToken(result.token)
+        onLogin(result.family, result.members)
+      }
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addMember = () => {
+    if (members.length < 10) {
+      setMembers([...members, { name: '', pin: '', avatarColor: AVATAR_COLORS[members.length % AVATAR_COLORS.length] }])
+    }
+  }
+
+  const removeMember = (index: number) => {
+    if (members.length > 2) {
+      setMembers(members.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateMember = (index: number, field: string, value: string) => {
+    const updated = [...members]
+    updated[index] = { ...updated[index], [field]: value }
+    setMembers(updated)
+  }
+
+  return (
+    <motion.div
+      className="min-h-screen flex items-center justify-center p-4"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      <div className="glass rounded-3xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+            <Users className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold gradient-text">Family Goals</h1>
+          <p className="text-white/60 mt-2">Track goals together</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-white/70 text-sm mb-2">Family Name</label>
+            <input
+              type="text"
+              value={familyName}
+              onChange={(e) => setFamilyName(e.target.value)}
+              className="input-field"
+              placeholder="Enter family name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white/70 text-sm mb-2">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field pr-12"
+                placeholder="Enter password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          {isRegister && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-white/70 text-sm">Family Members ({members.length}/10)</label>
+                {members.length < 10 && (
+                  <button type="button" onClick={addMember} className="text-violet-400 text-sm hover:text-violet-300">
+                    + Add Member
+                  </button>
+                )}
+              </div>
+              
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {members.map((member, index) => (
+                  <div key={index} className="glass rounded-xl p-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
+                        style={{ backgroundColor: member.avatarColor }}
+                      >
+                        {member.name.charAt(0).toUpperCase() || '?'}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          value={member.name}
+                          onChange={(e) => updateMember(index, 'name', e.target.value)}
+                          className="input-field text-sm py-2"
+                          placeholder="Name"
+                          required
+                        />
+                        <input
+                          type="text"
+                          value={member.pin}
+                          onChange={(e) => updateMember(index, 'pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="input-field text-sm py-2"
+                          placeholder="4-digit PIN"
+                          maxLength={4}
+                          required
+                        />
+                      </div>
+                      {members.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeMember(index)}
+                          className="text-red-400 hover:text-red-300 p-2"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+
+          <button type="submit" className="btn-primary w-full" disabled={loading}>
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 spinner" />
+                Loading...
+              </span>
+            ) : isRegister ? 'Create Family' : 'Login'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsRegister(!isRegister)}
+            className="w-full text-center text-white/60 hover:text-white text-sm"
+          >
+            {isRegister ? 'Already have a family? Login' : "New family? Register"}
+          </button>
+        </form>
+      </div>
+    </motion.div>
+  )
+}
+
+// Member Select Screen
+function MemberSelectScreen({ members, onSelect, onLogout }: {
+  members: Member[]
+  onSelect: (member: Member) => void
+  onLogout: () => void
+}) {
+  return (
+    <motion.div
+      className="min-h-screen p-6"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      <div className="max-w-md mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold text-white">Who's logging in?</h1>
+          <button onClick={onLogout} className="text-white/60 hover:text-white p-2">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {members.map((member) => (
+            <motion.button
+              key={member.id}
+              onClick={() => onSelect(member)}
+              className="glass rounded-2xl p-6 text-center card-hover"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div
+                className="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-2xl font-bold text-white mb-3"
+                style={{ backgroundColor: member.avatar_color }}
+              >
+                {member.name.charAt(0).toUpperCase()}
+              </div>
+              <p className="text-white font-medium">{member.name}</p>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// PIN Entry Screen
+function PinEntryScreen({ member, onVerified, onBack }: {
+  member: Member
+  onVerified: (member: Member) => void
+  onBack: () => void
+}) {
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handlePinInput = async (digit: string) => {
+    if (pin.length < 4) {
+      const newPin = pin + digit
+      setPin(newPin)
+      
+      if (newPin.length === 4) {
+        setLoading(true)
+        setError('')
+        try {
+          const result = await api.post<{ token: string; member: Member }>(
+            '/auth/verify-pin',
+            { memberId: member.id, pin: newPin }
+          )
+          api.setToken(result.token)
+          onVerified(result.member)
+        } catch (err) {
+          setError('Invalid PIN')
+          setPin('')
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+  }
+
+  const handleBackspace = () => {
+    setPin(pin.slice(0, -1))
+    setError('')
+  }
+
+  return (
+    <motion.div
+      className="min-h-screen flex flex-col items-center justify-center p-6"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      <button
+        onClick={onBack}
+        className="absolute top-6 left-6 text-white/60 hover:text-white flex items-center gap-2"
+      >
+        <ChevronLeft className="w-5 h-5" />
+        Back
+      </button>
+
+      <div
+        className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white mb-4"
+        style={{ backgroundColor: member.avatar_color }}
+      >
+        {member.name.charAt(0).toUpperCase()}
+      </div>
+      <h2 className="text-xl font-semibold text-white mb-2">{member.name}</h2>
+      <p className="text-white/60 mb-8">Enter your PIN</p>
+
+      {/* PIN Display */}
+      <div className="flex gap-3 mb-8">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`w-4 h-4 rounded-full transition-all ${
+              pin.length > i ? 'bg-violet-500 scale-110' : 'bg-white/20'
+            }`}
+          />
+        ))}
+      </div>
+
+      {error && (
+        <p className="text-red-400 text-sm mb-4">{error}</p>
+      )}
+
+      {/* Number Pad */}
+      <div className="grid grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, 'back'].map((num, i) => (
+          <div key={i} className="flex justify-center">
+            {num === null ? (
+              <div className="w-[4.5rem]" />
+            ) : num === 'back' ? (
+              <button
+                onClick={handleBackspace}
+                disabled={loading}
+                className="number-pad-btn"
+              >
+                ←
+              </button>
+            ) : (
+              <button
+                onClick={() => handlePinInput(String(num))}
+                disabled={loading}
+                className="number-pad-btn"
+              >
+                {num}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+// Dashboard Screen
+function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
+  currentMember: Member
+  members: Member[]
+  onViewMember: (member: DashboardMember) => void
+  onLogout: () => void
+}) {
+  const [dashboard, setDashboard] = useState<DashboardMember[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadDashboard()
+  }, [])
+
+  const loadDashboard = async () => {
+    try {
+      const data = await api.fetch<DashboardMember[]>('/dashboard')
+      setDashboard(data)
+    } catch (err) {
+      console.error('Failed to load dashboard:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 spinner" />
+      </div>
+    )
+  }
+
+  const currentMemberData = dashboard.find(m => m.id === currentMember.id)
+
+  return (
+    <motion.div
+      className="min-h-screen pb-24"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      {/* Header */}
+      <div className="glass-strong sticky top-0 z-10 px-6 py-4 safe-top">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold text-white"
+              style={{ backgroundColor: currentMember.avatar_color }}
+            >
+              {currentMember.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-white font-semibold">{currentMember.name}</p>
+              <p className="text-white/50 text-xs">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+          </div>
+          <button onClick={onLogout} className="text-white/60 hover:text-white p-2">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="px-6 py-4 max-w-2xl mx-auto">
+        {/* Today's Progress - Clickable */}
+        {currentMemberData && (
+          <motion.button
+            onClick={() => onViewMember(currentMemberData)}
+            className="w-full glass rounded-3xl p-6 mb-6 text-left card-hover cursor-pointer"
+            variants={fadeInUp}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Today's Progress</h2>
+              <ChevronRight className="w-5 h-5 text-white/50" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* Water Progress */}
+              <div className="text-center">
+                <WaterGlass percentage={(currentMemberData.water_progress.current / currentMemberData.water_progress.target) * 100} />
+                <p className="mt-3 text-white font-medium">
+                  {(currentMemberData.water_progress.current / 1000).toFixed(1)}L / {(currentMemberData.water_progress.target / 1000).toFixed(1)}L
+                </p>
+                <p className="text-white/50 text-sm">Water</p>
+              </div>
+
+              {/* Exercise Progress */}
+              <div className="text-center">
+                <div className="relative w-24 h-24 mx-auto">
+                  <ProgressRing
+                    progress={(currentMemberData.exercise_progress.current / currentMemberData.exercise_progress.target) * 100}
+                    size={96}
+                    strokeWidth={8}
+                    color="#22c55e"
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <Dumbbell className="w-5 h-5 text-emerald-400 mb-1" />
+                    <span className="text-white font-semibold">
+                      {currentMemberData.exercise_progress.current}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-3 text-white font-medium">
+                  {currentMemberData.exercise_progress.current} / 30 min
+                </p>
+                <p className="text-white/50 text-sm">Exercise</p>
+              </div>
+            </div>
+
+            {/* Goal Progress */}
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <Calendar className="w-4 h-4 text-amber-400" />
+              <span className="text-white/70 text-sm">
+                {currentMemberData.completed_count} / {currentMemberData.total_goals} daily goals
+              </span>
+            </div>
+          </motion.button>
+        )}
+
+        {/* Family Overview */}
+        <h3 className="text-lg font-semibold text-white mb-4">Family Overview</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {dashboard.map((member) => {
+            const isCurrentUser = member.id === currentMember.id
+            return (
+              <motion.button
+                key={member.id}
+                onClick={() => onViewMember(member)}
+                className={`glass rounded-2xl p-4 text-left card-hover ${isCurrentUser ? 'ring-2 ring-violet-500' : ''}`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold text-white"
+                    style={{ backgroundColor: member.avatar_color }}
+                  >
+                    {member.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-white font-medium text-sm">{member.name}</p>
+                    {isCurrentUser && (
+                      <span className="text-xs text-violet-400">You</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Droplets className="w-4 h-4 text-sky-400" />
+                    <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-sky-400 rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (member.water_progress.current / member.water_progress.target) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Dumbbell className="w-4 h-4 text-emerald-400" />
+                    <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-400 rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (member.exercise_progress.current / member.exercise_progress.target) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-amber-400" />
+                    <span className="text-white/60 text-xs">
+                      {member.completed_count}/{member.total_goals}
+                    </span>
+                  </div>
+                </div>
+              </motion.button>
+            )
+          })}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// Member Detail Screen
+function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
+  member: DashboardMember
+  currentMember: Member
+  onBack: () => void
+  onUpdate: () => void
+}) {
+  const [waterAmount, setWaterAmount] = useState(250)
+  const [exerciseMinutes, setExerciseMinutes] = useState(30)
+  const [exerciseActivity, setExerciseActivity] = useState('Walking')
+  const [showWaterModal, setShowWaterModal] = useState(false)
+  const [showExerciseModal, setShowExerciseModal] = useState(false)
+  const [goals, setGoals] = useState<Goal[]>(member.goals || [])
+  const [waterData, setWaterData] = useState(member.water_progress)
+  const [exerciseData, setExerciseData] = useState(member.exercise_progress)
+  
+  const isOwnProfile = member.id === currentMember.id
+
+  const loadData = async () => {
+    try {
+      const [waterRes, exerciseRes] = await Promise.all([
+        api.fetch<{ total: number; target: number }>(`/water?memberId=${member.id}`),
+        api.fetch<{ total: number; target: number }>(`/exercise?memberId=${member.id}`)
+      ])
+      setWaterData({ current: waterRes.total, target: waterRes.target })
+      setExerciseData({ current: exerciseRes.total, target: exerciseRes.target })
+    } catch (err) {
+      console.error('Failed to load data:', err)
+    }
+  }
+
+  const addWater = async () => {
+    try {
+      await api.post('/water', { memberId: member.id, amount_ml: waterAmount })
+      await loadData()
+      setShowWaterModal(false)
+      onUpdate()
+    } catch (err) {
+      console.error('Failed to add water:', err)
+    }
+  }
+
+  const addExercise = async () => {
+    try {
+      await api.post('/exercise', {
+        memberId: member.id,
+        duration_minutes: exerciseMinutes,
+        activity: exerciseActivity
+      })
+      await loadData()
+      setShowExerciseModal(false)
+      onUpdate()
+    } catch (err) {
+      console.error('Failed to add exercise:', err)
+    }
+  }
+
+  const toggleGoal = async (goal: Goal) => {
+    try {
+      await api.post(`/goals/${goal.id}/complete`, { memberId: member.id })
+      setGoals(goals.map(g => 
+        g.id === goal.id ? { ...g, is_completed: !g.is_completed } : g
+      ))
+      onUpdate()
+    } catch (err) {
+      console.error('Failed to toggle goal:', err)
+    }
+  }
+
+  const dailyGoals = goals.filter(g => g.frequency !== 'weekly')
+  const weeklyGoals = goals.filter(g => g.frequency === 'weekly')
+
+  return (
+    <motion.div
+      className="min-h-screen pb-24"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      {/* Header */}
+      <div className="glass-strong sticky top-0 z-10 px-6 py-4 safe-top">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <button onClick={onBack} className="flex items-center gap-2 text-white/70 hover:text-white">
+            <ChevronLeft className="w-5 h-5" />
+            Back
+          </button>
+          <h1 className="text-lg font-semibold text-white">
+            {isOwnProfile ? 'My Goals' : `${member.name}'s Goals`}
+          </h1>
+          <div className="w-16" />
+        </div>
+      </div>
+
+      <div className="px-6 py-4 max-w-2xl mx-auto">
+        {/* Profile Header */}
+        <div className="glass rounded-3xl p-6 mb-6 text-center">
+          <div
+            className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-3xl font-bold text-white mb-4"
+            style={{ backgroundColor: member.avatar_color }}
+          >
+            {member.name.charAt(0).toUpperCase()}
+          </div>
+          <h2 className="text-xl font-bold text-white mb-1">{member.name}</h2>
+          {isOwnProfile && <span className="text-violet-400 text-sm">Your Profile</span>}
+        </div>
+
+        {/* Water & Exercise Cards */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {/* Water Card */}
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <Droplets className="w-5 h-5 text-sky-400" />
+              {isOwnProfile && (
+                <button
+                  onClick={() => setShowWaterModal(true)}
+                  className="text-sky-400 text-sm hover:text-sky-300"
+                >
+                  + Add
+                </button>
+              )}
+            </div>
+            <WaterGlass percentage={(waterData.current / waterData.target) * 100} />
+            <p className="text-center text-white mt-2">
+              {(waterData.current / 1000).toFixed(1)}L / {(waterData.target / 1000).toFixed(1)}L
+            </p>
+          </div>
+
+          {/* Exercise Card */}
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <Dumbbell className="w-5 h-5 text-emerald-400" />
+              {isOwnProfile && (
+                <button
+                  onClick={() => setShowExerciseModal(true)}
+                  className="text-emerald-400 text-sm hover:text-emerald-300"
+                >
+                  + Add
+                </button>
+              )}
+            </div>
+            <div className="relative w-24 h-24 mx-auto">
+              <ProgressRing
+                progress={(exerciseData.current / exerciseData.target) * 100}
+                size={96}
+                strokeWidth={8}
+                color="#22c55e"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-white font-bold text-lg">{exerciseData.current}</span>
+                <span className="text-white/50 text-xs">min</span>
+              </div>
+            </div>
+            <p className="text-center text-white mt-2">
+              {exerciseData.current} / 30 min
+            </p>
+          </div>
+        </div>
+
+        {/* Daily Goals */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-amber-400" />
+            Daily Goals
+          </h3>
+          <div className="space-y-3">
+            {dailyGoals.filter(g => g.type !== 'water' && g.type !== 'exercise').map((goal) => (
+              <motion.div
+                key={goal.id}
+                className={`glass rounded-xl p-4 flex items-center gap-4 ${goal.is_completed ? 'bg-emerald-500/10' : ''}`}
+                whileTap={{ scale: 0.98 }}
+              >
+                <button
+                  onClick={() => isOwnProfile && toggleGoal(goal)}
+                  disabled={!isOwnProfile}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    goal.is_completed
+                      ? 'bg-emerald-500 text-white'
+                      : 'border-2 border-white/30 hover:border-emerald-500'
+                  }`}
+                >
+                  {goal.is_completed && <Check className="w-5 h-5" />}
+                </button>
+                <div className="flex-1">
+                  <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
+                    {goal.title}
+                  </p>
+                  {goal.description && (
+                    <p className="text-white/50 text-sm">{goal.description}</p>
+                  )}
+                  {goal.type === 'assigned' && goal.assigned_by_name && (
+                    <p className="text-violet-400 text-xs mt-1">
+                      From {goal.assigned_by_name}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Weekly Goals */}
+        {weeklyGoals.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Target className="w-5 h-5 text-violet-400" />
+              Weekly Goals
+            </h3>
+            <div className="space-y-3">
+              {weeklyGoals.map((goal) => (
+                <motion.div
+                  key={goal.id}
+                  className={`glass rounded-xl p-4 flex items-center gap-4 border-l-4 border-violet-500 ${goal.is_completed ? 'bg-violet-500/10' : ''}`}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <button
+                    onClick={() => isOwnProfile && toggleGoal(goal)}
+                    disabled={!isOwnProfile}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                      goal.is_completed
+                        ? 'bg-violet-500 text-white'
+                        : 'border-2 border-white/30 hover:border-violet-500'
+                    }`}
+                  >
+                    {goal.is_completed && <Check className="w-5 h-5" />}
+                  </button>
+                  <div className="flex-1">
+                    <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
+                      {goal.title}
+                    </p>
+                    {goal.description && (
+                      <p className="text-white/50 text-sm">{goal.description}</p>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Water Modal */}
+      <AnimatePresence>
+        {showWaterModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowWaterModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Add Water</h3>
+                <button onClick={() => setShowWaterModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <button
+                  onClick={() => setWaterAmount(Math.max(50, waterAmount - 50))}
+                  className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
+                >
+                  <Minus className="w-5 h-5 text-white" />
+                </button>
+                <div className="text-center">
+                  <span className="text-4xl font-bold text-white">{waterAmount}</span>
+                  <span className="text-xl text-white/60 ml-1">ml</span>
+                </div>
+                <button
+                  onClick={() => setWaterAmount(Math.min(2000, waterAmount + 50))}
+                  className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
+                >
+                  <Plus className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 mb-6">
+                {[100, 250, 500, 750].map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setWaterAmount(amount)}
+                    className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                      waterAmount === amount
+                        ? 'bg-sky-500 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    {amount}ml
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={addWater} className="btn-primary w-full">
+                Add {waterAmount}ml
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Exercise Modal */}
+      <AnimatePresence>
+        {showExerciseModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowExerciseModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Log Exercise</h3>
+                <button onClick={() => setShowExerciseModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-white/70 text-sm mb-2">Activity</label>
+                <select
+                  value={exerciseActivity}
+                  onChange={(e) => setExerciseActivity(e.target.value)}
+                  className="input-field"
+                >
+                  {['Walking', 'Running', 'Cycling', 'Swimming', 'Yoga', 'Gym', 'Sports', 'HIIT', 'Stretching'].map((activity) => (
+                    <option key={activity} value={activity}>{activity}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <button
+                  onClick={() => setExerciseMinutes(Math.max(5, exerciseMinutes - 5))}
+                  className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
+                >
+                  <Minus className="w-5 h-5 text-white" />
+                </button>
+                <div className="text-center">
+                  <span className="text-4xl font-bold text-white">{exerciseMinutes}</span>
+                  <span className="text-xl text-white/60 ml-1">min</span>
+                </div>
+                <button
+                  onClick={() => setExerciseMinutes(Math.min(180, exerciseMinutes + 5))}
+                  className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
+                >
+                  <Plus className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              <button onClick={addExercise} className="btn-primary w-full">
+                Log {exerciseMinutes} minutes
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+// Main App Component
+export default function Home() {
+  const [family, setFamily] = useState<{ id: string; name: string } | null>(null)
+  const [members, setMembers] = useState<Member[]>([])
+  const [currentMember, setCurrentMember] = useState<Member | null>(null)
+  const [screen, setScreen] = useState<'login' | 'member-select' | 'pin-entry' | 'dashboard' | 'member-detail'>('login')
+  const [selectedMember, setSelectedMember] = useState<DashboardMember | null>(null)
+  const [settings, setSettings] = useState<FamilySettings | null>(null)
+
+  useEffect(() => {
+    // Check for existing token
+    const token = localStorage.getItem('token')
+    if (token) {
+      api.setToken(token)
+      api.fetch<Member[]>('/members')
+        .then((data) => {
+          setMembers(data)
+          setScreen('member-select')
+        })
+        .catch(() => {
+          localStorage.removeItem('token')
+          api.setToken(null)
+        })
+    }
+  }, [])
+
+  const handleLogin = (familyData: { id: string; name: string }, membersData: Member[]) => {
+    setFamily(familyData)
+    setMembers(membersData)
+    setScreen('member-select')
+  }
+
+  const handleSelectMember = (member: Member) => {
+    setSelectedMember(member as unknown as DashboardMember)
+    setScreen('pin-entry')
+  }
+
+  const handlePinVerified = (member: Member) => {
+    setCurrentMember(member)
+    setScreen('dashboard')
+  }
+
+  const handleViewMember = (member: DashboardMember) => {
+    setSelectedMember(member)
+    setScreen('member-detail')
+  }
+
+  const handleLogout = () => {
+    setCurrentMember(null)
+    setScreen('member-select')
+  }
+
+  const handleFullLogout = () => {
+    localStorage.removeItem('token')
+    api.setToken(null)
+    setFamily(null)
+    setMembers([])
+    setCurrentMember(null)
+    setSettings(null)
+    setScreen('login')
+  }
+
+  const refreshSettings = async () => {
+    try {
+      const data = await api.fetch<FamilySettings>('/settings')
+      setSettings(data)
+    } catch (err) {
+      console.error('Failed to load settings:', err)
+    }
+  }
+
+  const authContextValue: AuthContextType = {
+    family,
+    members,
+    currentMember,
+    settings,
+    refreshSettings
+  }
+
+  return (
+    <AuthContext.Provider value={authContextValue}>
+      <AnimatePresence mode="wait">
+        {screen === 'login' && (
+          <LoginScreen key="login" onLogin={handleLogin} />
+        )}
+        {screen === 'member-select' && (
+          <MemberSelectScreen
+            key="member-select"
+            members={members}
+            onSelect={handleSelectMember}
+            onLogout={handleFullLogout}
+          />
+        )}
+        {screen === 'pin-entry' && selectedMember && (
+          <PinEntryScreen
+            key="pin-entry"
+            member={selectedMember as unknown as Member}
+            onVerified={handlePinVerified}
+            onBack={() => setScreen('member-select')}
+          />
+        )}
+        {screen === 'dashboard' && currentMember && (
+          <DashboardScreen
+            key="dashboard"
+            currentMember={currentMember}
+            members={members}
+            onViewMember={handleViewMember}
+            onLogout={handleLogout}
+          />
+        )}
+        {screen === 'member-detail' && selectedMember && currentMember && (
+          <MemberDetailScreen
+            key="member-detail"
+            member={selectedMember}
+            currentMember={currentMember}
+            onBack={() => setScreen('dashboard')}
+            onUpdate={() => {}}
+          />
+        )}
+      </AnimatePresence>
+    </AuthContext.Provider>
+  )
+}

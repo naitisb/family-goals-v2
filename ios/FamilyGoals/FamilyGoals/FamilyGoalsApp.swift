@@ -1,0 +1,58 @@
+import SwiftUI
+
+@main
+struct FamilyGoalsApp: App {
+    @StateObject private var appState = AppState()
+    
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(appState)
+        }
+    }
+}
+
+class AppState: ObservableObject {
+    @Published var isLoggedIn = false
+    @Published var family: Family?
+    @Published var members: [Member] = []
+    @Published var currentMember: Member?
+    @Published var token: String?
+    
+    init() {
+        // Check for existing token
+        if let token = UserDefaults.standard.string(forKey: "authToken") {
+            self.token = token
+            APIService.shared.token = token
+            // We'll verify the token when loading members
+        }
+    }
+    
+    func login(response: LoginResponse) {
+        self.token = response.token
+        self.family = response.family
+        self.members = response.members
+        self.isLoggedIn = true
+        APIService.shared.setToken(response.token)
+    }
+    
+    func setCurrentMember(_ member: Member, token: String) {
+        self.currentMember = member
+        self.token = token
+        APIService.shared.setToken(token)
+    }
+    
+    func logout() {
+        self.currentMember = nil
+    }
+    
+    func fullLogout() {
+        self.isLoggedIn = false
+        self.family = nil
+        self.members = []
+        self.currentMember = nil
+        self.token = nil
+        APIService.shared.setToken(nil)
+    }
+}
+
