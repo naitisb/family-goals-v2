@@ -1432,7 +1432,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                 >
                   <Plus className="w-5 h-5 text-white" />
                 </button>
-              </div>
+    </div>
 
               <button onClick={addExercise} className="btn-primary w-full">
                 Log {exerciseMinutes} minutes

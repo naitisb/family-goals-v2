@@ -26,7 +26,7 @@ export async function PUT(
     }
 
     const updateFields: string[] = []
-    const values: unknown[] = []
+    const values: (string | number | null)[] = []
 
     if (updates.title !== undefined) {
       updateFields.push('title = ?')
