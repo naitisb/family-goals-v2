@@ -6,7 +6,8 @@ import {
   Droplets, Dumbbell, Target, Check, Plus, Minus,
   LogOut, Users, User, Lock, Eye, EyeOff, ChevronRight,
   Edit3, X, Home as HomeIcon, Settings, Palette, ChevronLeft, Bell,
-  Clock, Trash2, Calendar, BarChart3
+  Clock, Trash2, Calendar, BarChart3, Camera, Image, Upload, Save,
+  UserPlus, UserMinus
 } from 'lucide-react'
 import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
 import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit } from '@/lib/utils'
@@ -852,6 +853,457 @@ function ThemeModal({ onClose, settings, onSave }: {
   )
 }
 
+// Settings Modal Component
+function SettingsModal({ onClose, family, members, currentMember, onUpdate }: {
+  onClose: () => void
+  family: { id: string; name: string }
+  members: Member[]
+  currentMember: Member
+  onUpdate: () => void
+}) {
+  const [tab, setTab] = useState<'family' | 'members' | 'theme'>('family')
+  const [familyName, setFamilyName] = useState(family.name)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  // Member management
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [memberName, setMemberName] = useState('')
+  const [memberPin, setMemberPin] = useState('')
+  const [memberColor, setMemberColor] = useState(AVATAR_COLORS[0])
+  const [addingMember, setAddingMember] = useState(false)
+
+  const handleUpdateFamilyName = async () => {
+    if (!familyName.trim()) {
+      setError('Family name is required')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await api.put('/family', { name: familyName })
+      onUpdate()
+      setError('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteFamily = async () => {
+    if (!deletePassword) {
+      setError('Password required to delete family')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await api.delete('/family', { password: deletePassword })
+      localStorage.removeItem('token')
+      window.location.reload()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleUpdateMember = async () => {
+    if (!editingMember) return
+    if (!memberName.trim()) {
+      setError('Member name is required')
+      return
+    }
+    if (memberPin && (memberPin.length !== 4 || !/^\d{4}$/.test(memberPin))) {
+      setError('PIN must be exactly 4 digits')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await api.put(`/members/${editingMember.id}`, {
+        name: memberName,
+        avatar_color: memberColor,
+        ...(memberPin ? { pin: memberPin } : {})
+      })
+      onUpdate()
+      setEditingMember(null)
+      setMemberName('')
+      setMemberPin('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddMember = async () => {
+    if (!memberName.trim()) {
+      setError('Member name is required')
+      return
+    }
+    if (memberPin.length !== 4 || !/^\d{4}$/.test(memberPin)) {
+      setError('PIN must be exactly 4 digits')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await api.post('/members', {
+        name: memberName,
+        pin: memberPin,
+        avatarColor: memberColor
+      })
+      onUpdate()
+      setAddingMember(false)
+      setMemberName('')
+      setMemberPin('')
+      setMemberColor(AVATAR_COLORS[0])
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteMember = async (memberId: string) => {
+    if (!confirm('Are you sure you want to remove this family member? All their data will be deleted.')) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await api.delete(`/members/${memberId}`)
+      onUpdate()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const startEditMember = (member: Member) => {
+    setEditingMember(member)
+    setMemberName(member.name)
+    setMemberColor(member.avatar_color)
+    setMemberPin('')
+  }
+
+  return (
+    <motion.div
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="modal-content p-0 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Settings
+          </h3>
+          <button onClick={onClose} className="text-white/60 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-white/10">
+          <button
+            onClick={() => setTab('family')}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
+              tab === 'family'
+                ? 'text-violet-400 border-b-2 border-violet-400'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            Family
+          </button>
+          <button
+            onClick={() => setTab('members')}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
+              tab === 'members'
+                ? 'text-violet-400 border-b-2 border-violet-400'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            Members
+          </button>
+          <button
+            onClick={() => setTab('theme')}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
+              tab === 'theme'
+                ? 'text-violet-400 border-b-2 border-violet-400'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            Theme
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {/* Family Tab */}
+          {tab === 'family' && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Family Name</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={familyName}
+                    onChange={(e) => setFamilyName(e.target.value)}
+                    className="input-field flex-1"
+                    placeholder="Enter family name"
+                  />
+                  <button
+                    onClick={handleUpdateFamilyName}
+                    disabled={saving || familyName === family.name}
+                    className="btn-primary px-4"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 pt-6">
+                <h4 className="text-lg font-semibold text-red-400 mb-2">Danger Zone</h4>
+                <p className="text-white/60 text-sm mb-4">
+                  Deleting your family will permanently remove all data including members, goals, and progress.
+                </p>
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/30 transition-all"
+                  >
+                    Delete Family
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Enter family password to confirm"
+                      className="input-field"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDeleteFamily}
+                        disabled={saving}
+                        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-all"
+                      >
+                        {saving ? 'Deleting...' : 'Confirm Delete'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDeleteConfirm(false)
+                          setDeletePassword('')
+                        }}
+                        className="btn-secondary"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Members Tab */}
+          {tab === 'members' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white/70 text-sm">
+                  {members.length} of 10 members
+                </p>
+                {members.length < 10 && !addingMember && (
+                  <button
+                    onClick={() => setAddingMember(true)}
+                    className="text-violet-400 text-sm hover:text-violet-300 flex items-center gap-1"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Add Member
+                  </button>
+                )}
+              </div>
+
+              {/* Add Member Form */}
+              {addingMember && (
+                <div className="glass rounded-xl p-4 mb-4">
+                  <h4 className="text-white font-semibold mb-3">Add New Member</h4>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={memberName}
+                      onChange={(e) => setMemberName(e.target.value)}
+                      placeholder="Member name"
+                      className="input-field"
+                    />
+                    <input
+                      type="text"
+                      value={memberPin}
+                      onChange={(e) => setMemberPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      placeholder="4-digit PIN"
+                      maxLength={4}
+                      className="input-field"
+                    />
+                    <div>
+                      <label className="block text-white/70 text-sm mb-2">Avatar Color</label>
+                      <div className="flex flex-wrap gap-2">
+                        {AVATAR_COLORS.slice(0, 18).map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setMemberColor(color)}
+                            className={`w-8 h-8 rounded-full transition-all ${
+                              memberColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-900 scale-110' : ''
+                            }`}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddMember} disabled={saving} className="btn-primary flex-1">
+                        {saving ? 'Adding...' : 'Add Member'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAddingMember(false)
+                          setMemberName('')
+                          setMemberPin('')
+                          setError('')
+                        }}
+                        className="btn-secondary flex-1"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Members List */}
+              {members.map((member) => (
+                <div key={member.id} className="glass rounded-xl p-4">
+                  {editingMember?.id === member.id ? (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={memberName}
+                        onChange={(e) => setMemberName(e.target.value)}
+                        placeholder="Member name"
+                        className="input-field"
+                      />
+                      <input
+                        type="text"
+                        value={memberPin}
+                        onChange={(e) => setMemberPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="New PIN (leave blank to keep current)"
+                        maxLength={4}
+                        className="input-field"
+                      />
+                      <div>
+                        <label className="block text-white/70 text-sm mb-2">Avatar Color</label>
+                        <div className="flex flex-wrap gap-2">
+                          {AVATAR_COLORS.slice(0, 18).map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => setMemberColor(color)}
+                              className={`w-8 h-8 rounded-full transition-all ${
+                                memberColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-900 scale-110' : ''
+                              }`}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleUpdateMember} disabled={saving} className="btn-primary flex-1">
+                          {saving ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingMember(null)
+                            setMemberName('')
+                            setMemberPin('')
+                            setError('')
+                          }}
+                          className="btn-secondary flex-1"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white"
+                        style={{ backgroundColor: member.avatar_color }}
+                      >
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-medium">{member.name}</p>
+                        {member.id === currentMember.id && (
+                          <span className="text-xs text-violet-400">Current User</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => startEditMember(member)}
+                        className="text-violet-400 hover:text-violet-300 px-3 py-1 text-sm"
+                      >
+                        Edit
+                      </button>
+                      {members.length > 2 && (
+                        <button
+                          onClick={() => handleDeleteMember(member.id)}
+                          disabled={saving}
+                          className="text-red-400 hover:text-red-300 px-3 py-1 text-sm"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Theme Tab - Use existing ThemeModal content */}
+          {tab === 'theme' && (
+            <div className="text-white/60 text-center py-8">
+              Theme customization will be shown here
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-300 text-sm mt-4">
+              {error}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // Dashboard Screen
 function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
   currentMember: Member
@@ -862,12 +1314,9 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
   const [dashboard, setDashboard] = useState<DashboardMember[]>([])
   const [loading, setLoading] = useState(true)
   const [showThemeModal, setShowThemeModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [settings, setSettings] = useState<FamilySettings | null>(null)
-
-  useEffect(() => {
-    loadDashboard()
-    loadSettings()
-  }, [])
+  const [family, setFamily] = useState<{ id: string; name: string } | null>(null)
 
   const loadSettings = async () => {
     try {
@@ -875,6 +1324,15 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
       setSettings(data)
     } catch (err) {
       console.error('Failed to load settings:', err)
+    }
+  }
+
+  const loadFamily = async () => {
+    try {
+      const data = await api.fetch<{ id: string; name: string }>('/family')
+      setFamily(data)
+    } catch (err) {
+      console.error('Failed to load family:', err)
     }
   }
 
@@ -893,6 +1351,17 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
       setLoading(false)
     }
   }
+
+  const handleUpdate = async () => {
+    await loadDashboard()
+    await loadFamily()
+  }
+
+  useEffect(() => {
+    loadDashboard()
+    loadSettings()
+    loadFamily()
+  }, [])
 
   if (loading) {
     return (
@@ -931,6 +1400,9 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
           <div className="flex items-center gap-2">
             <button onClick={() => setShowThemeModal(true)} className="text-white/60 hover:text-white p-2">
               <Palette className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowSettingsModal(true)} className="text-white/60 hover:text-white p-2">
+              <Settings className="w-5 h-5" />
             </button>
             <button onClick={onLogout} className="text-white/60 hover:text-white p-2">
               <LogOut className="w-5 h-5" />
@@ -1064,6 +1536,15 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
             onClose={() => setShowThemeModal(false)}
             settings={settings}
             onSave={saveSettings}
+          />
+        )}
+        {showSettingsModal && family && (
+          <SettingsModal
+            onClose={() => setShowSettingsModal(false)}
+            family={family}
+            members={members}
+            currentMember={currentMember}
+            onUpdate={handleUpdate}
           />
         )}
       </AnimatePresence>

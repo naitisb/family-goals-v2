@@ -63,7 +63,7 @@ export async function PUT(
   try {
     const auth = requireAuth(request)
     const { memberId } = await params
-    const { avatar_color, name } = await request.json()
+    const { avatar_color, name, pin } = await request.json()
 
     // Verify member belongs to this family
     const member = await getFirstRow<Member>(
@@ -87,6 +87,16 @@ export async function PUT(
     if (name) {
       updates.push('name = ?')
       values.push(name)
+    }
+    if (pin) {
+      if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+        return NextResponse.json(
+          { error: 'PIN must be exactly 4 digits' },
+          { status: 400 }
+        )
+      }
+      updates.push('pin = ?')
+      values.push(pin)
     }
 
     if (updates.length > 0) {
