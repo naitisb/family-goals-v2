@@ -1727,6 +1727,10 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [waterData, setWaterData] = useState(member.water_progress)
   const [exerciseData, setExerciseData] = useState(member.exercise_progress)
   const [allMembers, setAllMembers] = useState<Member[]>([])
+  const [customExercises, setCustomExercises] = useState<any[]>([])
+  const [showAddExerciseInline, setShowAddExerciseInline] = useState(false)
+  const [newExerciseName, setNewExerciseName] = useState('')
+  const [addingExercise, setAddingExercise] = useState(false)
 
   // Load all family members for goal assignment
   useEffect(() => {
@@ -1740,6 +1744,42 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     }
     loadMembers()
   }, [])
+
+  // Load custom exercises when exercise modal opens
+  useEffect(() => {
+    if (showExerciseModal) {
+      loadCustomExercises()
+    }
+  }, [showExerciseModal])
+
+  const loadCustomExercises = async () => {
+    try {
+      const exercises = await api.fetch('/exercises/custom')
+      setCustomExercises(Array.isArray(exercises) ? exercises : [])
+    } catch (err) {
+      console.error('Failed to load custom exercises:', err)
+    }
+  }
+
+  const handleAddCustomExercise = async () => {
+    if (!newExerciseName.trim()) return
+
+    setAddingExercise(true)
+    try {
+      await api.post('/exercises/custom', {
+        name: newExerciseName,
+        default_duration: exerciseMinutes
+      })
+      await loadCustomExercises()
+      setExerciseActivity(newExerciseName)
+      setNewExerciseName('')
+      setShowAddExerciseInline(false)
+    } catch (err) {
+      console.error('Failed to add exercise:', err)
+    } finally {
+      setAddingExercise(false)
+    }
+  }
 
   // Water goal settings
   const waterGoal = goals.find(g => g.type === 'water')
@@ -2489,15 +2529,59 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
 
               <div className="mb-4">
                 <label className="block text-white/70 text-sm mb-2">Activity</label>
-                <select
-                  value={exerciseActivity}
-                  onChange={(e) => setExerciseActivity(e.target.value)}
-                  className="input-field"
-                >
-                  {['Walking', 'Running', 'Cycling', 'Swimming', 'Yoga', 'Gym', 'Sports', 'HIIT', 'Stretching'].map((activity) => (
-                    <option key={activity} value={activity}>{activity}</option>
-                  ))}
-                </select>
+                {!showAddExerciseInline ? (
+                  <>
+                    <select
+                      value={exerciseActivity}
+                      onChange={(e) => {
+                        if (e.target.value === '__add_new__') {
+                          setShowAddExerciseInline(true)
+                          setNewExerciseName('')
+                        } else {
+                          setExerciseActivity(e.target.value)
+                        }
+                      }}
+                      className="input-field"
+                    >
+                      {['Walking', 'Running', 'Cycling', 'Swimming', 'Yoga', 'Gym', 'Sports', 'HIIT', 'Stretching'].map((activity) => (
+                        <option key={activity} value={activity}>{activity}</option>
+                      ))}
+                      {customExercises.map((exercise) => (
+                        <option key={exercise.id} value={exercise.name}>{exercise.name}</option>
+                      ))}
+                      <option value="__add_new__">+ Add New Exercise...</option>
+                    </select>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={newExerciseName}
+                      onChange={(e) => setNewExerciseName(e.target.value)}
+                      placeholder="Enter exercise name"
+                      className="input-field"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAddCustomExercise}
+                        disabled={!newExerciseName.trim() || addingExercise}
+                        className="btn-primary flex-1 text-sm py-2"
+                      >
+                        {addingExercise ? 'Adding...' : 'Add Exercise'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddExerciseInline(false)
+                          setNewExerciseName('')
+                        }}
+                        className="btn-secondary flex-1 text-sm py-2"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-4 mb-6">
