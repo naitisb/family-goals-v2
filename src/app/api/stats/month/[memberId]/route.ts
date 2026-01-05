@@ -28,6 +28,7 @@ export async function GET(
       total: number
       water: number
       exercise: number
+      steps: number
     }> = []
 
     const startDate = new Date(monthStart)
@@ -56,12 +57,18 @@ export async function GET(
         [memberId, dateStr]
       )
 
+      const steps = await getFirstRow<{ total: number }>(
+        "SELECT COALESCE(SUM(steps), 0) as total FROM steps_entries WHERE member_id = ? AND date = ?",
+        [memberId, dateStr]
+      )
+
       days.push({
         date: dateStr,
         completed: completions?.count || 0,
         total: totalGoals?.count || 0,
         water: water?.total || 0,
-        exercise: exercise?.total || 0
+        exercise: exercise?.total || 0,
+        steps: steps?.total || 0
       })
 
       startDate.setDate(startDate.getDate() + 1)
@@ -73,6 +80,7 @@ export async function GET(
     const perfectDays = days.filter(d => d.total > 0 && d.completed >= d.total).length
     const totalWater = days.reduce((sum, d) => sum + d.water, 0)
     const totalExercise = days.reduce((sum, d) => sum + d.exercise, 0)
+    const totalSteps = days.reduce((sum, d) => sum + d.steps, 0)
 
     return NextResponse.json({
       period: 'month',
@@ -84,7 +92,8 @@ export async function GET(
         perfect_days: perfectDays,
         current_streak: 0,
         total_water: totalWater,
-        total_exercise: totalExercise
+        total_exercise: totalExercise,
+        total_steps: totalSteps
       }
     })
   } catch (error) {

@@ -64,9 +64,19 @@ export async function GET(request: NextRequest) {
         [member.id, today]
       )
 
+      // Get steps total for today
+      const stepsResult = await getFirstRow<{ total: number }>(
+        'SELECT COALESCE(SUM(steps), 0) as total FROM steps_entries WHERE member_id = ? AND date = ?',
+        [member.id, today]
+      )
+
       // Get water goal target
       const waterGoal = goals.find(g => g.type === 'water')
       const waterTarget = waterGoal?.target_value || 3000
+
+      // Get steps goal target
+      const stepsGoal = goals.find(g => g.type === 'steps')
+      const stepsTarget = stepsGoal?.target_value || 10000
 
       // Count completions
       const dailyGoals = goalsWithCompletion.filter(g => g.frequency !== 'weekly')
@@ -82,6 +92,10 @@ export async function GET(request: NextRequest) {
         exercise_progress: {
           current: exerciseResult?.total || 0,
           target: 30
+        },
+        steps_progress: {
+          current: stepsResult?.total || 0,
+          target: stepsTarget
         },
         completed_count: dailyGoals.filter(g => g.is_completed).length,
         total_goals: dailyGoals.length,

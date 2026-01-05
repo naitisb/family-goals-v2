@@ -20,7 +20,7 @@ export interface Member {
 export interface Goal {
   id: string
   member_id: string
-  type: 'water' | 'exercise' | 'custom' | 'assigned'
+  type: 'water' | 'exercise' | 'custom' | 'assigned' | 'steps'
   title: string
   description?: string
   target_value?: number
@@ -65,6 +65,15 @@ export interface ExerciseEntry {
   activity: string
   notes?: string
   date: string
+  created_at: string
+}
+
+export interface StepsEntry {
+  id: string
+  member_id: string
+  steps: number
+  date: string
+  source: 'manual' | 'healthkit' | 'googlefit'
   created_at: string
 }
 
@@ -123,6 +132,7 @@ export interface DashboardMember extends Member {
   goals: Goal[]
   water_progress: { current: number; target: number }
   exercise_progress: { current: number; target: number }
+  steps_progress: { current: number; target: number }
   completed_count: number
   total_goals: number
   weekly_completed_count: number
@@ -139,6 +149,7 @@ export interface StatsData {
     total: number
     water: number
     exercise: number
+    steps: number
   }>
   summary: {
     avg_completion: number
@@ -146,6 +157,7 @@ export interface StatsData {
     current_streak: number
     total_water: number
     total_exercise: number
+    total_steps: number
   }
 }
 

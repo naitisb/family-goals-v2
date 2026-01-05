@@ -84,6 +84,13 @@ export async function POST(request: NextRequest) {
         [uuidv4(), memberId]
       )
 
+      // Create default steps goal
+      await executeQuery(
+        `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, frequency)
+         VALUES (?, ?, 'steps', 'Daily Steps', 'Track your daily steps and stay active. Recommended: 10,000 steps per day', 10000, 'steps', 'daily')`,
+        [uuidv4(), memberId]
+      )
+
       // Create one default custom goal
       await executeQuery(
         `INSERT INTO goals (id, member_id, type, title, description, is_custom, frequency)
