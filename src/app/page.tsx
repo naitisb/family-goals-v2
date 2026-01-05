@@ -1726,6 +1726,20 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [goals, setGoals] = useState<Goal[]>(member.goals || [])
   const [waterData, setWaterData] = useState(member.water_progress)
   const [exerciseData, setExerciseData] = useState(member.exercise_progress)
+  const [allMembers, setAllMembers] = useState<Member[]>([])
+
+  // Load all family members for goal assignment
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        const data = await api.fetch<Member[]>('/members')
+        setAllMembers(data)
+      } catch (err) {
+        console.error('Failed to load members:', err)
+      }
+    }
+    loadMembers()
+  }, [])
 
   // Water goal settings
   const waterGoal = goals.find(g => g.type === 'water')
@@ -1753,6 +1767,17 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [goalReminderEnabled, setGoalReminderEnabled] = useState(false)
   const [goalReminderTime, setGoalReminderTime] = useState('')
   const [goalError, setGoalError] = useState('')
+
+  // Goal assignment
+  const [showAssignGoalModal, setShowAssignGoalModal] = useState(false)
+  const [assignGoalTitle, setAssignGoalTitle] = useState('')
+  const [assignGoalDescription, setAssignGoalDescription] = useState('')
+  const [assignGoalFrequency, setAssignGoalFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [assignGoalDueTime, setAssignGoalDueTime] = useState('')
+  const [assignGoalReminderEnabled, setAssignGoalReminderEnabled] = useState(false)
+  const [assignGoalReminderTime, setAssignGoalReminderTime] = useState('')
+  const [assignToMemberId, setAssignToMemberId] = useState('')
+  const [assignGoalError, setAssignGoalError] = useState('')
 
   const isOwnProfile = member.id === currentMember.id
   const customGoals = goals.filter(g => g.type === 'custom' && g.is_custom)
@@ -1897,6 +1922,48 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     }
   }
 
+  const openAssignGoalModal = () => {
+    setAssignGoalTitle('')
+    setAssignGoalDescription('')
+    setAssignGoalFrequency('daily')
+    setAssignGoalDueTime('')
+    setAssignGoalReminderEnabled(false)
+    setAssignGoalReminderTime('')
+    setAssignToMemberId('')
+    setAssignGoalError('')
+    setShowAssignGoalModal(true)
+  }
+
+  const handleAssignGoal = async () => {
+    if (!assignGoalTitle.trim()) {
+      setAssignGoalError('Goal title is required')
+      return
+    }
+    if (!assignToMemberId) {
+      setAssignGoalError('Please select a family member')
+      return
+    }
+
+    try {
+      await api.post('/goals', {
+        memberId: assignToMemberId,
+        type: 'assigned',
+        title: assignGoalTitle,
+        description: assignGoalDescription || null,
+        frequency: assignGoalFrequency,
+        due_time: assignGoalDueTime || null,
+        reminder_enabled: assignGoalReminderEnabled,
+        reminder_time: assignGoalReminderTime || null,
+        assigned_by: currentMember.id
+      })
+
+      setShowAssignGoalModal(false)
+      onUpdate()
+    } catch (err) {
+      setAssignGoalError((err as Error).message)
+    }
+  }
+
   const handleUpdateWaterGoal = async () => {
     if (!waterGoal) return
     if (waterTarget <= 0) {
@@ -2010,12 +2077,21 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           <h1 className="text-lg font-semibold text-white">
             {isOwnProfile ? 'My Goals' : `${member.name}'s Goals`}
           </h1>
-          <button
-            onClick={openStatsModal}
-            className="text-white/60 hover:text-white p-2"
-          >
-            <BarChart3 className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openAssignGoalModal}
+              className="text-violet-400 hover:text-violet-300 p-2"
+              title="Assign goal to family member"
+            >
+              <UserPlus className="w-5 h-5" />
+            </button>
+            <button
+              onClick={openStatsModal}
+              className="text-white/60 hover:text-white p-2"
+            >
+              <BarChart3 className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2140,17 +2216,34 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                   {goal.is_completed && <Check className="w-5 h-5" />}
                 </button>
                 <div className="flex-1">
-                  <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
-                    {goal.title}
-                  </p>
-                  {goal.description && (
-                    <p className="text-white/50 text-sm">{goal.description}</p>
-                  )}
-                  {goal.type === 'assigned' && goal.assigned_by_name && (
-                    <p className="text-violet-400 text-xs mt-1">
-                      From {goal.assigned_by_name}
-                    </p>
-                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
+                        {goal.title}
+                      </p>
+                      {goal.description && (
+                        <p className="text-white/50 text-sm">{goal.description}</p>
+                      )}
+                      {goal.type === 'assigned' && goal.assigned_by_name && (
+                        <p className="text-violet-400 text-xs mt-1">
+                          From {goal.assigned_by_name}
+                        </p>
+                      )}
+                      {goal.due_time && (
+                        <span className="text-white/40 text-xs flex items-center gap-1 mt-1">
+                          <Clock className="w-3 h-3" />
+                          {goal.due_time}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => openEditGoalModal(goal)}
+                      className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
+                      title="Edit goal"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -2267,12 +2360,34 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                     {goal.is_completed && <Check className="w-5 h-5" />}
                   </button>
                   <div className="flex-1">
-                    <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
-                      {goal.title}
-                    </p>
-                    {goal.description && (
-                      <p className="text-white/50 text-sm">{goal.description}</p>
-                    )}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className={`font-medium ${goal.is_completed ? 'text-white/60 line-through' : 'text-white'}`}>
+                          {goal.title}
+                        </p>
+                        {goal.description && (
+                          <p className="text-white/50 text-sm">{goal.description}</p>
+                        )}
+                        {goal.type === 'assigned' && goal.assigned_by_name && (
+                          <p className="text-violet-400 text-xs mt-1">
+                            From {goal.assigned_by_name}
+                          </p>
+                        )}
+                        {goal.due_time && (
+                          <span className="text-white/40 text-xs flex items-center gap-1 mt-1">
+                            <Clock className="w-3 h-3" />
+                            {goal.due_time}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => openEditGoalModal(goal)}
+                        className="text-violet-400 hover:text-violet-300 p-1 shrink-0"
+                        title="Edit goal"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -2732,6 +2847,154 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                 ) : (
                   <p className="text-white/60 text-center py-8">No statistics available</p>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Assign Goal Modal */}
+        {showAssignGoalModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAssignGoalModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6 max-w-lg"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Assign Goal to Family Member</h3>
+                <button onClick={() => setShowAssignGoalModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Assign to *</label>
+                  <select
+                    value={assignToMemberId}
+                    onChange={(e) => setAssignToMemberId(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Select a family member</option>
+                    {allMembers.filter(m => m.id !== currentMember.id).map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Goal Title *</label>
+                  <input
+                    type="text"
+                    value={assignGoalTitle}
+                    onChange={(e) => setAssignGoalTitle(e.target.value)}
+                    placeholder="e.g., Practice piano for 30 minutes"
+                    className="input-field"
+                    maxLength={100}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Description (optional)</label>
+                  <textarea
+                    value={assignGoalDescription}
+                    onChange={(e) => setAssignGoalDescription(e.target.value)}
+                    placeholder="Add more details..."
+                    className="input-field resize-none"
+                    rows={3}
+                    maxLength={500}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Frequency</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setAssignGoalFrequency('daily')}
+                      className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                        assignGoalFrequency === 'daily'
+                          ? 'bg-violet-500 text-white'
+                          : 'bg-white/10 text-white/70 hover:bg-white/20'
+                      }`}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      onClick={() => setAssignGoalFrequency('weekly')}
+                      className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                        assignGoalFrequency === 'weekly'
+                          ? 'bg-violet-500 text-white'
+                          : 'bg-white/10 text-white/70 hover:bg-white/20'
+                      }`}
+                    >
+                      Weekly
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Due Time (optional)</label>
+                  <input
+                    type="time"
+                    value={assignGoalDueTime}
+                    onChange={(e) => setAssignGoalDueTime(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="assign-reminder"
+                    checked={assignGoalReminderEnabled}
+                    onChange={(e) => setAssignGoalReminderEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/30 bg-white/10 text-violet-500"
+                  />
+                  <label htmlFor="assign-reminder" className="text-white/70 text-sm">
+                    Enable reminder
+                  </label>
+                </div>
+
+                {assignGoalReminderEnabled && (
+                  <div>
+                    <label className="block text-white/70 text-sm mb-2">Reminder Time</label>
+                    <input
+                      type="time"
+                      value={assignGoalReminderTime}
+                      onChange={(e) => setAssignGoalReminderTime(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                )}
+
+                {assignGoalError && (
+                  <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-300 text-sm">
+                    {assignGoalError}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowAssignGoalModal(false)}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAssignGoal}
+                    className="btn-primary flex-1"
+                  >
+                    Assign Goal
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

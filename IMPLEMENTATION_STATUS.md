@@ -23,11 +23,27 @@ All features from the original request have been successfully implemented and de
 
 ### 3. Custom Goals (Up to 3 Additional) ✅
 - ✅ **Add custom goals** - Member Detail → Custom Goals → Add Goal
-- ✅ **Edit custom goals** - Click edit icon
-- ✅ **Delete custom goals** - Click trash icon
+- ✅ **Edit custom goals** - Click edit icon on any custom goal
+- ✅ **Delete custom goals** - Click trash icon on any custom goal
 - ✅ **Daily/weekly frequency** - Toggle when creating
 - ✅ **Up to 4 per frequency** - 1 default + 3 additional = 4 total daily, 4 total weekly
 - ✅ **Backend API** - POST/PUT/DELETE /api/goals
+
+### 3b. Goal Editing (ALL Goal Types) ✅ **NEW!**
+- ✅ **Edit ANY goal type** - Edit button appears on all daily/weekly/assigned goals
+- ✅ **Edit water goals** - Change title, description, timing, reminders
+- ✅ **Edit exercise goals** - Modify goal properties
+- ✅ **Edit assigned goals** - Update goals assigned by others
+- ✅ **Unified edit modal** - Same modal for all goal types
+- ✅ **Preserve goal type** - Editing doesn't change goal classification
+
+### 3c. Goal Assignment to Family Members ✅ **NEW!**
+- ✅ **Assign goals to anyone** - UserPlus button in member detail header
+- ✅ **Select recipient** - Choose any family member (except yourself)
+- ✅ **Full goal configuration** - Title, description, frequency, timing, reminders
+- ✅ **Track assignor** - Goals show "From [Name]" tag
+- ✅ **Backend support** - API tracks assigned_by field
+- ✅ **Appears in Daily/Weekly lists** - Assigned goals display with other goals
 
 ### 4. Water Goal Customization ✅
 - ✅ **Customize target amount** - Member Detail → Water card → Settings
@@ -165,7 +181,8 @@ All tables created with proper relationships:
 
 ### Modals
 - ✅ Water Settings Modal (target + unit)
-- ✅ Add/Edit Goal Modal (timing + reminders)
+- ✅ Add/Edit Goal Modal (timing + reminders) - Works for ALL goal types
+- ✅ Assign Goal Modal (assign to family members) **NEW!**
 - ✅ Water Entry Modal
 - ✅ Exercise Entry Modal
 - ✅ Statistics Modal (week/month toggle)
@@ -192,7 +209,9 @@ All tables created with proper relationships:
 | Goal tracking (week/month/year) | ✅ | ✅ | Complete |
 | Goal timing & notifications | ✅ | ✅ | Complete |
 | Custom exercises | ✅ | ✅ | Complete |
-| **TOTAL** | **14/14** | **14/14** | **✅ 100%** |
+| **Edit all goal types** | **✅ NEW** | **✅** | **Complete** |
+| **Assign goals to members** | **✅ NEW** | **✅** | **Complete** |
+| **TOTAL** | **16/16** | **16/16** | **✅ 100%** |
 
 ---
 
