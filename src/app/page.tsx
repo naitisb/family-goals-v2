@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
+import React, { useState, useEffect, createContext, useContext, ReactNode, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Droplets, Dumbbell, Target, Check, Plus, Minus,
@@ -505,6 +505,353 @@ function PinEntryScreen({ member, onVerified, onBack }: {
   )
 }
 
+// Theme Modal with Drag-to-Position
+function ThemeModal({ onClose, settings, onSave }: {
+  onClose: () => void
+  settings: FamilySettings | null
+  onSave: (updates: Partial<FamilySettings>) => Promise<void>
+}) {
+  const [theme, setTheme] = useState(settings?.background_type || 'gradient')
+  const [gradientId, setGradientId] = useState(settings?.background_value || 'default')
+  const [backgroundUrl, setBackgroundUrl] = useState(settings?.background_type === 'photo' ? settings?.background_value : '')
+  const [backgroundFit, setBackgroundFit] = useState<'cover' | 'contain' | 'fill'>(settings?.background_fit as 'cover' | 'contain' | 'fill' || 'cover')
+  const [backgroundPosition, setBackgroundPosition] = useState(settings?.background_position || '50% 50%')
+  const [backgroundBlur, setBackgroundBlur] = useState(settings?.background_blur || 0)
+  const [backgroundOverlay, setBackgroundOverlay] = useState(settings?.background_overlay || 0.6)
+  const [accentColor, setAccentColor] = useState(settings?.accent_color || '#8b5cf6')
+  const [isDragging, setIsDragging] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  // Parse position for preview
+  const parsePosition = (pos: string) => {
+    const parts = pos.split(' ')
+    return {
+      x: parseFloat(parts[0]) || 50,
+      y: parseFloat(parts[1]) || 50
+    }
+  }
+
+  const position = parsePosition(backgroundPosition)
+
+  // Handle drag for background positioning
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (theme !== 'photo' || !backgroundUrl) return
+    setIsDragging(true)
+    updatePositionFromEvent(e)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    updatePositionFromEvent(e)
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (theme !== 'photo' || !backgroundUrl) return
+    setIsDragging(true)
+    updatePositionFromTouch(e)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return
+    updatePositionFromTouch(e)
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+  }
+
+  const updatePositionFromEvent = (e: React.MouseEvent) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+    setBackgroundPosition(`${x.toFixed(1)}% ${y.toFixed(1)}%`)
+  }
+
+  const updatePositionFromTouch = (e: React.TouchEvent) => {
+    if (!containerRef.current || e.touches.length === 0) return
+    const touch = e.touches[0]
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = Math.max(0, Math.min(100, ((touch.clientX - rect.left) / rect.width) * 100))
+    const y = Math.max(0, Math.min(100, ((touch.clientY - rect.top) / rect.height) * 100))
+    setBackgroundPosition(`${x.toFixed(1)}% ${y.toFixed(1)}%`)
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'background')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${api.token}`
+        },
+        body: formData
+      })
+
+      if (!response.ok) throw new Error('Upload failed')
+      const data = await response.json()
+      setBackgroundUrl(data.url)
+      setTheme('photo')
+    } catch (err) {
+      console.error('Upload failed:', err)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await onSave({
+        background_type: theme as 'gradient' | 'photo',
+        background_value: theme === 'gradient' ? gradientId : backgroundUrl,
+        background_fit: backgroundFit,
+        background_position: backgroundPosition,
+        background_blur: backgroundBlur,
+        background_overlay: backgroundOverlay,
+        accent_color: accentColor
+      })
+      onClose()
+    } catch (err) {
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const currentGradient = GRADIENT_THEMES.find(g => g.id === gradientId)?.value || GRADIENT_THEMES[0].value
+
+  return (
+    <motion.div
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="modal-content p-0 max-w-lg overflow-hidden"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Palette className="w-5 h-5" />
+            Theme & Background
+          </h3>
+          <button onClick={onClose} className="text-white/60 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="p-4 max-h-[70vh] overflow-y-auto space-y-6">
+          {/* Preview with Drag-to-Position */}
+          <div>
+            <label className="block text-white/70 text-sm mb-2">
+              Preview {theme === 'photo' && backgroundUrl && '(Drag to reposition)'}
+            </label>
+            <div
+              ref={containerRef}
+              className={`relative h-40 rounded-xl overflow-hidden border-2 ${isDragging ? 'border-violet-500' : 'border-white/20'} ${theme === 'photo' && backgroundUrl ? 'cursor-move' : ''}`}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              {theme === 'gradient' ? (
+                <div className="absolute inset-0" style={{ background: currentGradient }} />
+              ) : backgroundUrl ? (
+                <>
+                  <img
+                    src={backgroundUrl}
+                    alt="Background"
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      objectFit: backgroundFit,
+                      objectPosition: backgroundPosition,
+                      filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined
+                    }}
+                    draggable={false}
+                  />
+                  <div
+                    className="absolute inset-0"
+                    style={{ backgroundColor: `rgba(0,0,0,${backgroundOverlay})` }}
+                  />
+                  {/* Position indicator */}
+                  <div
+                    className="absolute w-6 h-6 bg-violet-500 rounded-full border-2 border-white shadow-lg transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ left: `${position.x}%`, top: `${position.y}%` }}
+                  />
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/5">
+                  <p className="text-white/40">No background selected</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Theme Type Selection */}
+          <div>
+            <label className="block text-white/70 text-sm mb-2">Background Type</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTheme('gradient')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                  theme === 'gradient' ? 'bg-violet-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+              >
+                Gradient
+              </button>
+              <button
+                onClick={() => setTheme('photo')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                  theme === 'photo' ? 'bg-violet-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+              >
+                Photo
+              </button>
+            </div>
+          </div>
+
+          {/* Gradient Selection */}
+          {theme === 'gradient' && (
+            <div>
+              <label className="block text-white/70 text-sm mb-2">Gradient Theme</label>
+              <div className="grid grid-cols-3 gap-2">
+                {GRADIENT_THEMES.map((gradient) => (
+                  <button
+                    key={gradient.id}
+                    onClick={() => setGradientId(gradient.id)}
+                    className={`h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      gradientId === gradient.id ? 'border-violet-500 scale-105' : 'border-transparent'
+                    }`}
+                  >
+                    <div className="w-full h-full" style={{ background: gradient.value }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Photo Upload */}
+          {theme === 'photo' && (
+            <>
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Upload Background</label>
+                <label className="block w-full py-3 px-4 rounded-lg bg-white/10 border border-white/20 text-center cursor-pointer hover:bg-white/15 transition-all">
+                  {uploading ? 'Uploading...' : 'Choose Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+
+              {backgroundUrl && (
+                <>
+                  {/* Fit Options */}
+                  <div>
+                    <label className="block text-white/70 text-sm mb-2">Image Fit</label>
+                    <div className="flex gap-2">
+                      {(['cover', 'contain', 'fill'] as const).map((fit) => (
+                        <button
+                          key={fit}
+                          onClick={() => setBackgroundFit(fit)}
+                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium capitalize transition-all ${
+                            backgroundFit === fit ? 'bg-violet-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'
+                          }`}
+                        >
+                          {fit}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Blur Slider */}
+                  <div>
+                    <label className="block text-white/70 text-sm mb-2">Blur: {backgroundBlur}px</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="20"
+                      value={backgroundBlur}
+                      onChange={(e) => setBackgroundBlur(Number(e.target.value))}
+                      className="w-full accent-violet-500"
+                    />
+                  </div>
+
+                  {/* Overlay Slider */}
+                  <div>
+                    <label className="block text-white/70 text-sm mb-2">Overlay: {Math.round(backgroundOverlay * 100)}%</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={backgroundOverlay * 100}
+                      onChange={(e) => setBackgroundOverlay(Number(e.target.value) / 100)}
+                      className="w-full accent-violet-500"
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Accent Color */}
+          <div>
+            <label className="block text-white/70 text-sm mb-2">Accent Color</label>
+            <div className="flex flex-wrap gap-2">
+              {AVATAR_COLORS.slice(0, 18).map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setAccentColor(color)}
+                  className={`w-8 h-8 rounded-full transition-all ${
+                    accentColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-900 scale-110' : ''
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-white/10 flex gap-3">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancel
+          </button>
+          <button onClick={handleSave} className="btn-primary flex-1" disabled={saving}>
+            {saving ? 'Saving...' : 'Save Theme'}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // Dashboard Screen
 function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
   currentMember: Member
@@ -514,10 +861,27 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
 }) {
   const [dashboard, setDashboard] = useState<DashboardMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [showThemeModal, setShowThemeModal] = useState(false)
+  const [settings, setSettings] = useState<FamilySettings | null>(null)
 
   useEffect(() => {
     loadDashboard()
+    loadSettings()
   }, [])
+
+  const loadSettings = async () => {
+    try {
+      const data = await api.fetch<FamilySettings>('/settings')
+      setSettings(data)
+    } catch (err) {
+      console.error('Failed to load settings:', err)
+    }
+  }
+
+  const saveSettings = async (updates: Partial<FamilySettings>) => {
+    await api.put('/settings', updates)
+    await loadSettings()
+  }
 
   const loadDashboard = async () => {
     try {
@@ -564,9 +928,14 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
               </p>
             </div>
           </div>
-          <button onClick={onLogout} className="text-white/60 hover:text-white p-2">
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowThemeModal(true)} className="text-white/60 hover:text-white p-2">
+              <Palette className="w-5 h-5" />
+            </button>
+            <button onClick={onLogout} className="text-white/60 hover:text-white p-2">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -687,6 +1056,17 @@ function DashboardScreen({ currentMember, members, onViewMember, onLogout }: {
           })}
         </div>
       </div>
+
+      {/* Theme Modal */}
+      <AnimatePresence>
+        {showThemeModal && (
+          <ThemeModal
+            onClose={() => setShowThemeModal(false)}
+            settings={settings}
+            onSave={saveSettings}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
