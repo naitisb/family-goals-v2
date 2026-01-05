@@ -10,7 +10,7 @@ import {
   UserPlus, UserMinus
 } from 'lucide-react'
 import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
-import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit } from '@/lib/utils'
+import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit, convertWaterToMl } from '@/lib/utils'
 
 // API Helper
 const api = {
@@ -1564,9 +1564,16 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [exerciseActivity, setExerciseActivity] = useState('Walking')
   const [showWaterModal, setShowWaterModal] = useState(false)
   const [showExerciseModal, setShowExerciseModal] = useState(false)
+  const [showWaterSettingsModal, setShowWaterSettingsModal] = useState(false)
   const [goals, setGoals] = useState<Goal[]>(member.goals || [])
   const [waterData, setWaterData] = useState(member.water_progress)
   const [exerciseData, setExerciseData] = useState(member.exercise_progress)
+
+  // Water goal settings
+  const waterGoal = goals.find(g => g.type === 'water')
+  const [waterTarget, setWaterTarget] = useState(waterGoal?.target_value || 2000)
+  const [waterUnit, setWaterUnit] = useState(waterGoal?.target_unit || 'ml')
+  const [waterError, setWaterError] = useState('')
 
   // Custom goal management
   const [showAddGoalModal, setShowAddGoalModal] = useState(false)
@@ -1722,8 +1729,44 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     }
   }
 
+  const handleUpdateWaterGoal = async () => {
+    if (!waterGoal) return
+    if (waterTarget <= 0) {
+      setWaterError('Target must be greater than 0')
+      return
+    }
+
+    try {
+      const targetInMl = convertWaterToMl(waterTarget, waterUnit)
+      await api.put(`/goals/${waterGoal.id}`, {
+        target_value: targetInMl,
+        target_unit: waterUnit
+      })
+
+      // Reload goals
+      const updatedMember = await api.fetch<DashboardMember>(`/dashboard`)
+      const memberData = Array.isArray(updatedMember)
+        ? updatedMember.find(m => m.id === member.id)
+        : updatedMember
+      if (memberData?.goals) {
+        setGoals(memberData.goals)
+      }
+
+      setShowWaterSettingsModal(false)
+      onUpdate()
+    } catch (err) {
+      setWaterError((err as Error).message)
+    }
+  }
+
   const dailyGoals = goals.filter(g => g.frequency !== 'weekly')
   const weeklyGoals = goals.filter(g => g.frequency === 'weekly')
+
+  // Calculate water display values
+  const waterUnitData = WATER_UNITS.find(u => u.id === (waterGoal?.target_unit || 'ml'))
+  const displayWaterCurrent = convertMlToUnit(waterData.current, waterGoal?.target_unit || 'ml')
+  const displayWaterTarget = convertMlToUnit(waterData.target, waterGoal?.target_unit || 'ml')
+  const waterUnitLabel = waterUnitData?.id || 'ml'
 
   return (
     <motion.div
@@ -1766,17 +1809,25 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
             <div className="flex items-center justify-between mb-3">
               <Droplets className="w-5 h-5 text-sky-400" />
               {isOwnProfile && (
-                <button
-                  onClick={() => setShowWaterModal(true)}
-                  className="text-sky-400 text-sm hover:text-sky-300"
-                >
-                  + Add
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowWaterSettingsModal(true)}
+                    className="text-sky-400/70 text-sm hover:text-sky-400"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowWaterModal(true)}
+                    className="text-sky-400 text-sm hover:text-sky-300"
+                  >
+                    + Add
+                  </button>
+                </div>
               )}
             </div>
             <WaterGlass percentage={(waterData.current / waterData.target) * 100} />
             <p className="text-center text-white mt-2">
-              {(waterData.current / 1000).toFixed(1)}L / {(waterData.target / 1000).toFixed(1)}L
+              {displayWaterCurrent.toFixed(1)}{waterUnitLabel} / {displayWaterTarget.toFixed(1)}{waterUnitLabel}
             </p>
           </div>
 
@@ -2103,6 +2154,82 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
               <button onClick={addExercise} className="btn-primary w-full">
                 Log {exerciseMinutes} minutes
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Water Settings Modal */}
+        {showWaterSettingsModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowWaterSettingsModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6 max-w-md"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Water Goal Settings</h3>
+                <button onClick={() => setShowWaterSettingsModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Daily Target</label>
+                  <input
+                    type="number"
+                    value={waterTarget}
+                    onChange={(e) => setWaterTarget(Number(e.target.value))}
+                    min="1"
+                    step="0.1"
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm mb-2">Unit</label>
+                  <select
+                    value={waterUnit}
+                    onChange={(e) => setWaterUnit(e.target.value)}
+                    className="input-field"
+                  >
+                    {WATER_UNITS.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {waterError && (
+                  <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-300 text-sm">
+                    {waterError}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowWaterSettingsModal(false)}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdateWaterGoal}
+                    className="btn-primary flex-1"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
