@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
 
     if (existing) {
       const updateFields: string[] = []
-      const values: unknown[] = []
+      const values: (string | number | null)[] = []
 
       const allowedFields = [
         'theme', 'background_type', 'background_value', 'background_fit',

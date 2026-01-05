@@ -78,7 +78,7 @@ export async function PUT(
     }
 
     const updates: string[] = []
-    const values: unknown[] = []
+    const values: (string | number | null)[] = []
 
     if (avatar_color) {
       updates.push('avatar_color = ?')

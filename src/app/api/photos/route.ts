@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type')
 
     let query = 'SELECT * FROM photos WHERE family_id = ?'
-    const params: unknown[] = [auth.familyId]
+    const params: (string | number | null)[] = [auth.familyId]
 
     if (memberId) {
       query += ' AND member_id = ?'
