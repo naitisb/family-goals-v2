@@ -861,7 +861,7 @@ function SettingsModal({ onClose, family, members, currentMember, onUpdate }: {
   currentMember: Member
   onUpdate: () => void
 }) {
-  const [tab, setTab] = useState<'family' | 'members' | 'theme'>('family')
+  const [tab, setTab] = useState<'family' | 'members' | 'exercises' | 'theme'>('family')
   const [familyName, setFamilyName] = useState(family.name)
   const [deletePassword, setDeletePassword] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -874,6 +874,66 @@ function SettingsModal({ onClose, family, members, currentMember, onUpdate }: {
   const [memberPin, setMemberPin] = useState('')
   const [memberColor, setMemberColor] = useState(AVATAR_COLORS[0])
   const [addingMember, setAddingMember] = useState(false)
+
+  // Custom exercises
+  const [customExercises, setCustomExercises] = useState<any[]>([])
+  const [exerciseName, setExerciseName] = useState('')
+  const [exerciseDuration, setExerciseDuration] = useState(30)
+  const [addingExercise, setAddingExercise] = useState(false)
+
+  useEffect(() => {
+    if (tab === 'exercises') {
+      loadCustomExercises()
+    }
+  }, [tab])
+
+  const loadCustomExercises = async () => {
+    try {
+      const exercises = await api.fetch('/exercises/custom')
+      setCustomExercises(Array.isArray(exercises) ? exercises : [])
+    } catch (err) {
+      console.error('Failed to load custom exercises:', err)
+    }
+  }
+
+  const handleAddExercise = async () => {
+    if (!exerciseName.trim()) {
+      setError('Exercise name is required')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await api.post('/exercises/custom', {
+        name: exerciseName,
+        default_duration: exerciseDuration
+      })
+      await loadCustomExercises()
+      setAddingExercise(false)
+      setExerciseName('')
+      setExerciseDuration(30)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteExercise = async (exerciseId: string) => {
+    if (!confirm('Delete this custom exercise?')) return
+
+    setSaving(true)
+    setError('')
+    try {
+      await api.delete(`/exercises/custom/${exerciseId}`)
+      await loadCustomExercises()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleUpdateFamilyName = async () => {
     if (!familyName.trim()) {
@@ -1042,6 +1102,16 @@ function SettingsModal({ onClose, family, members, currentMember, onUpdate }: {
             }`}
           >
             Members
+          </button>
+          <button
+            onClick={() => setTab('exercises')}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
+              tab === 'exercises'
+                ? 'text-violet-400 border-b-2 border-violet-400'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            Exercises
           </button>
           <button
             onClick={() => setTab('theme')}
@@ -1283,6 +1353,94 @@ function SettingsModal({ onClose, family, members, currentMember, onUpdate }: {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Exercises Tab */}
+          {tab === 'exercises' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white/70 text-sm">
+                  Custom exercise activities for the family
+                </p>
+                {!addingExercise && (
+                  <button
+                    onClick={() => setAddingExercise(true)}
+                    className="text-violet-400 text-sm hover:text-violet-300 flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Exercise
+                  </button>
+                )}
+              </div>
+
+              {/* Add Exercise Form */}
+              {addingExercise && (
+                <div className="glass rounded-xl p-4 mb-4">
+                  <h4 className="text-white font-semibold mb-3">Add Custom Exercise</h4>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={exerciseName}
+                      onChange={(e) => setExerciseName(e.target.value)}
+                      placeholder="Exercise name (e.g., Yoga, Basketball)"
+                      className="input-field"
+                    />
+                    <div>
+                      <label className="block text-white/70 text-sm mb-2">Default Duration (minutes)</label>
+                      <input
+                        type="number"
+                        value={exerciseDuration}
+                        onChange={(e) => setExerciseDuration(Number(e.target.value))}
+                        min="5"
+                        className="input-field"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddExercise} disabled={saving} className="btn-primary flex-1">
+                        {saving ? 'Adding...' : 'Add Exercise'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAddingExercise(false)
+                          setExerciseName('')
+                          setExerciseDuration(30)
+                          setError('')
+                        }}
+                        className="btn-secondary flex-1"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Exercises List */}
+              {customExercises.length === 0 ? (
+                <p className="text-white/40 text-sm text-center py-8">
+                  No custom exercises yet. Add your favorite activities!
+                </p>
+              ) : (
+                customExercises.map((exercise) => (
+                  <div key={exercise.id} className="glass rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-medium">{exercise.name}</p>
+                      <p className="text-white/50 text-xs">Default: {exercise.default_duration} minutes</p>
+                      {exercise.created_by_name && (
+                        <p className="text-white/40 text-xs mt-1">Added by {exercise.created_by_name}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteExercise(exercise.id)}
+                      disabled={saving}
+                      className="text-red-400 hover:text-red-300 p-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
