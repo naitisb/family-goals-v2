@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Droplets, Dumbbell, Target, Check, Plus, Minus,
   LogOut, Users, User, Lock, Eye, EyeOff, ChevronRight,
-  Edit3, X, Home, Settings, Palette, ChevronLeft, Bell,
+  Edit3, X, Home as HomeIcon, Settings, Palette, ChevronLeft, Bell,
   Clock, Trash2, Calendar, BarChart3
 } from 'lucide-react'
 import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
