@@ -1579,6 +1579,12 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [uploading, setUploading] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(member.profile_photo_url)
 
+  // Stats modal
+  const [showStatsModal, setShowStatsModal] = useState(false)
+  const [statsPeriod, setStatsPeriod] = useState<'week' | 'month'>('week')
+  const [statsData, setStatsData] = useState<any>(null)
+  const [loadingStats, setLoadingStats] = useState(false)
+
   // Custom goal management
   const [showAddGoalModal, setShowAddGoalModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -1803,6 +1809,23 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     input.click()
   }
 
+  const loadStats = async () => {
+    setLoadingStats(true)
+    try {
+      const data = await api.fetch(`/stats/${statsPeriod}/${member.id}`)
+      setStatsData(data)
+    } catch (err) {
+      console.error('Failed to load stats:', err)
+    } finally {
+      setLoadingStats(false)
+    }
+  }
+
+  const openStatsModal = () => {
+    setShowStatsModal(true)
+    loadStats()
+  }
+
   const dailyGoals = goals.filter(g => g.frequency !== 'weekly')
   const weeklyGoals = goals.filter(g => g.frequency === 'weekly')
 
@@ -1829,7 +1852,12 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           <h1 className="text-lg font-semibold text-white">
             {isOwnProfile ? 'My Goals' : `${member.name}'s Goals`}
           </h1>
-          <div className="w-16" />
+          <button
+            onClick={openStatsModal}
+            className="text-white/60 hover:text-white p-2"
+          >
+            <BarChart3 className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -2432,6 +2460,120 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                     {editingGoal ? 'Save Changes' : 'Add Goal'}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Stats Modal */}
+        {showStatsModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowStatsModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6 max-w-lg"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Statistics</h3>
+                <button onClick={() => setShowStatsModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => {
+                      setStatsPeriod('week')
+                      loadStats()
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                      statsPeriod === 'week'
+                        ? 'bg-violet-500 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    Week
+                  </button>
+                  <button
+                    onClick={() => {
+                      setStatsPeriod('month')
+                      loadStats()
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                      statsPeriod === 'month'
+                        ? 'bg-violet-500 text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    Month
+                  </button>
+                </div>
+
+                {loadingStats ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                  </div>
+                ) : statsData ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="glass rounded-lg p-4">
+                        <p className="text-white/60 text-xs mb-1">Completion</p>
+                        <p className="text-2xl font-bold text-white">{statsData.summary.avg_completion}%</p>
+                      </div>
+                      <div className="glass rounded-lg p-4">
+                        <p className="text-white/60 text-xs mb-1">Perfect Days</p>
+                        <p className="text-2xl font-bold text-white">{statsData.summary.perfect_days}</p>
+                      </div>
+                      <div className="glass rounded-lg p-4">
+                        <p className="text-white/60 text-xs mb-1">Current Streak</p>
+                        <p className="text-2xl font-bold text-white">{statsData.summary.current_streak}</p>
+                      </div>
+                      <div className="glass rounded-lg p-4">
+                        <p className="text-white/60 text-xs mb-1">Water</p>
+                        <p className="text-2xl font-bold text-white">{(statsData.summary.total_water / 1000).toFixed(1)}L</p>
+                      </div>
+                    </div>
+
+                    <div className="glass rounded-lg p-4">
+                      <p className="text-white/60 text-xs mb-3">Exercise</p>
+                      <p className="text-2xl font-bold text-white mb-1">{statsData.summary.total_exercise} min</p>
+                      <p className="text-white/50 text-xs">Total for this {statsPeriod}</p>
+                    </div>
+
+                    <div className="glass rounded-lg p-4">
+                      <p className="text-white/60 text-xs mb-3">Daily Progress</p>
+                      <div className="space-y-2">
+                        {statsData.days.slice(-7).map((day: any) => (
+                          <div key={day.date} className="flex items-center gap-2">
+                            <span className="text-white/50 text-xs w-20">
+                              {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                            <div className="flex-1 bg-white/10 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-violet-500 h-full rounded-full transition-all"
+                                style={{ width: `${day.total > 0 ? (day.completed / day.total) * 100 : 0}%` }}
+                              />
+                            </div>
+                            <span className="text-white/70 text-xs w-12 text-right">
+                              {day.total > 0 ? `${day.completed}/${day.total}` : '-'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-white/60 text-center py-8">No statistics available</p>
+                )}
               </div>
             </motion.div>
           </motion.div>
