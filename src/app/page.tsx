@@ -1575,6 +1575,10 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [waterUnit, setWaterUnit] = useState(waterGoal?.target_unit || 'ml')
   const [waterError, setWaterError] = useState('')
 
+  // Photo management
+  const [uploading, setUploading] = useState(false)
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(member.profile_photo_url)
+
   // Custom goal management
   const [showAddGoalModal, setShowAddGoalModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -1759,6 +1763,46 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     }
   }
 
+  const handleUploadProfilePhoto = async () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      setUploading(true)
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type', 'profile')
+        formData.append('memberId', member.id)
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${api.token}` },
+          body: formData
+        })
+
+        if (!response.ok) {
+          throw new Error('Upload failed')
+        }
+
+        const data = await response.json()
+        setProfilePhotoUrl(data.url)
+        onUpdate()
+      } catch (err) {
+        console.error('Failed to upload photo:', err)
+        alert('Failed to upload photo')
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    input.click()
+  }
+
   const dailyGoals = goals.filter(g => g.frequency !== 'weekly')
   const weeklyGoals = goals.filter(g => g.frequency === 'weekly')
 
@@ -1792,11 +1836,34 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
       <div className="px-6 py-4 max-w-2xl mx-auto">
         {/* Profile Header */}
         <div className="glass rounded-3xl p-6 mb-6 text-center">
-          <div
-            className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-3xl font-bold text-white mb-4"
-            style={{ backgroundColor: member.avatar_color }}
-          >
-            {member.name.charAt(0).toUpperCase()}
+          <div className="relative w-20 h-20 mx-auto mb-4">
+            {profilePhotoUrl ? (
+              <img
+                src={profilePhotoUrl}
+                alt={member.name}
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full rounded-full flex items-center justify-center text-3xl font-bold text-white"
+                style={{ backgroundColor: member.avatar_color }}
+              >
+                {member.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            {isOwnProfile && (
+              <button
+                onClick={handleUploadProfilePhoto}
+                disabled={uploading}
+                className="absolute bottom-0 right-0 bg-violet-500 rounded-full p-2 hover:bg-violet-600 transition-all disabled:opacity-50"
+              >
+                {uploading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4 text-white" />
+                )}
+              </button>
+            )}
           </div>
           <h2 className="text-xl font-bold text-white mb-1">{member.name}</h2>
           {isOwnProfile && <span className="text-violet-400 text-sm">Your Profile</span>}
