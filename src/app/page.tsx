@@ -168,6 +168,64 @@ function ProgressRing({ progress, size = 100, strokeWidth = 8, color = '#8b5cf6'
   )
 }
 
+// InfoModal Component
+function InfoModal({ show, onClose, title, content, link, linkText }: {
+  show: boolean
+  onClose: () => void
+  title: string
+  content: React.ReactNode
+  link: string
+  linkText: string
+}) {
+  if (!show) return null
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="modal-content p-6 max-w-md"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Info className="w-5 h-5 text-violet-400" />
+                <h3 className="text-xl font-bold text-white">{title}</h3>
+              </div>
+              <button onClick={onClose} className="text-white/60 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="text-white/80 text-sm space-y-3 mb-6">
+              {content}
+            </div>
+
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-violet-400 hover:text-violet-300 text-sm inline-flex items-center gap-1"
+            >
+              {linkText}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 // Login Screen
 function LoginScreen({ onLogin }: { onLogin: (family: { id: string; name: string }, members: Member[]) => void }) {
   const [isRegister, setIsRegister] = useState(false)
@@ -1736,7 +1794,13 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [showWaterModal, setShowWaterModal] = useState(false)
   const [showExerciseModal, setShowExerciseModal] = useState(false)
   const [showStepsModal, setShowStepsModal] = useState(false)
+  const [showMindfulnessModal, setShowMindfulnessModal] = useState(false)
   const [showWaterSettingsModal, setShowWaterSettingsModal] = useState(false)
+  const [showWaterInfo, setShowWaterInfo] = useState(false)
+  const [showExerciseInfo, setShowExerciseInfo] = useState(false)
+  const [showStepsInfo, setShowStepsInfo] = useState(false)
+  const [showMindfulnessInfo, setShowMindfulnessInfo] = useState(false)
+  const [mindfulnessMinutes, setMindfulnessMinutes] = useState(15)
   const [goals, setGoals] = useState<Goal[]>(member.goals || [])
   const [waterData, setWaterData] = useState(member.water_progress)
   const [exerciseData, setExerciseData] = useState(member.exercise_progress)
@@ -1745,6 +1809,12 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
     total: member.steps_progress?.current || 0,
     target: member.steps_progress?.target || 10000,
     unit: 'steps'
+  })
+  const [mindfulnessData, setMindfulnessData] = useState<{ entries: any[]; total: number; target: number; unit: string }>({
+    entries: [],
+    total: 0,
+    target: 15,
+    unit: 'minutes'
   })
   const [logSteps, setLogSteps] = useState('')
   const [allMembers, setAllMembers] = useState<Member[]>([])
@@ -1779,6 +1849,13 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
       fetchSteps()
     }
   }, [showStepsModal])
+
+  // Load mindfulness data when mindfulness modal opens
+  useEffect(() => {
+    if (showMindfulnessModal) {
+      fetchMindfulness()
+    }
+  }, [showMindfulnessModal])
 
   const loadCustomExercises = async () => {
     try {
@@ -1883,12 +1960,14 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
 
   const loadData = async () => {
     try {
-      const [waterRes, exerciseRes] = await Promise.all([
+      const [waterRes, exerciseRes, mindfulnessRes] = await Promise.all([
         api.fetch<{ total: number; target: number }>(`/water?memberId=${member.id}`),
-        api.fetch<{ total: number; target: number }>(`/exercise?memberId=${member.id}`)
+        api.fetch<{ total: number; target: number }>(`/exercise?memberId=${member.id}`),
+        api.fetch<{ entries: any[]; total: number; target: number; unit: string }>(`/mindfulness?memberId=${member.id}`)
       ])
       setWaterData({ current: waterRes.total, target: waterRes.target })
       setExerciseData({ current: exerciseRes.total, target: exerciseRes.target })
+      setMindfulnessData(mindfulnessRes)
     } catch (err) {
       console.error('Failed to load data:', err)
     }
@@ -1946,6 +2025,31 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
       onUpdate()
     } catch (err) {
       console.error('Failed to log steps:', err)
+    }
+  }
+
+  const fetchMindfulness = async () => {
+    try {
+      const data = await api.fetch<{ entries: any[]; total: number; target: number; unit: string }>(
+        `/mindfulness?memberId=${member.id}`
+      )
+      setMindfulnessData(data)
+    } catch (err) {
+      console.error('Failed to fetch mindfulness:', err)
+    }
+  }
+
+  const addMindfulness = async () => {
+    try {
+      await api.post('/mindfulness', {
+        memberId: member.id,
+        duration_minutes: mindfulnessMinutes
+      })
+      await fetchMindfulness()
+      setShowMindfulnessModal(false)
+      onUpdate()
+    } catch (err) {
+      console.error('Failed to add mindfulness:', err)
     }
   }
 
@@ -2261,12 +2365,21 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           {isOwnProfile && <span className="text-violet-400 text-sm">Your Profile</span>}
         </div>
 
-        {/* Water & Exercise & Steps Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Water & Exercise & Steps & Mindfulness Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {/* Water Card */}
           <div className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <Droplets className="w-5 h-5 text-sky-400" />
+              <div className="flex items-center gap-2">
+                <Droplets className="w-5 h-5 text-sky-400" />
+                <button
+                  onClick={() => setShowWaterInfo(true)}
+                  className="text-sky-400/50 hover:text-sky-400"
+                  title="Water intake information"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </div>
               {isOwnProfile && (
                 <div className="flex items-center gap-2">
                   <button
@@ -2293,7 +2406,16 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           {/* Exercise Card */}
           <div className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <Dumbbell className="w-5 h-5 text-emerald-400" />
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-5 h-5 text-emerald-400" />
+                <button
+                  onClick={() => setShowExerciseInfo(true)}
+                  className="text-emerald-400/50 hover:text-emerald-400"
+                  title="Exercise information"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </div>
               {isOwnProfile && (
                 <button
                   onClick={() => setShowExerciseModal(true)}
@@ -2323,7 +2445,16 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           {/* Steps Card */}
           <div className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <Activity className="w-5 h-5 text-green-400" />
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-green-400" />
+                <button
+                  onClick={() => setShowStepsInfo(true)}
+                  className="text-green-400/50 hover:text-green-400"
+                  title="Steps information"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </div>
               {isOwnProfile && (
                 <button
                   onClick={() => {
@@ -2353,6 +2484,48 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
               {stepsData.total.toLocaleString()} / {stepsData.target.toLocaleString()}
             </p>
             <p className="text-center text-white/50 text-xs">steps</p>
+          </div>
+
+          {/* Mindfulness Card */}
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-purple-400" />
+                <button
+                  onClick={() => setShowMindfulnessInfo(true)}
+                  className="text-purple-400/50 hover:text-purple-400"
+                  title="Mindfulness information"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </div>
+              {isOwnProfile && (
+                <button
+                  onClick={() => {
+                    setShowMindfulnessModal(true)
+                    fetchMindfulness()
+                  }}
+                  className="text-purple-400 text-sm hover:text-purple-300"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <div className="relative w-24 h-24 mx-auto">
+              <ProgressRing
+                progress={(mindfulnessData.total / mindfulnessData.target) * 100}
+                size={96}
+                strokeWidth={8}
+                color="#a855f7"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-white font-bold text-lg">{mindfulnessData.total}</span>
+                <span className="text-white/50 text-xs">min</span>
+              </div>
+            </div>
+            <p className="text-center text-white mt-2 text-sm">
+              {mindfulnessData.total} / {mindfulnessData.target} min
+            </p>
           </div>
         </div>
 
@@ -2403,7 +2576,7 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                 Daily Goals
               </h3>
           <div className="space-y-3">
-            {dailyGoals.filter(g => g.type !== 'water' && g.type !== 'exercise').map((goal) => (
+            {dailyGoals.filter(g => g.type !== 'water' && g.type !== 'exercise' && g.type !== 'steps' && g.type !== 'mindfulness').map((goal) => (
               <motion.div
                 key={goal.id}
                 className={`glass rounded-xl p-4 flex items-center gap-4 ${goal.is_completed ? 'bg-emerald-500/10' : ''}`}
@@ -3050,6 +3223,73 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
         )}
       </AnimatePresence>
 
+      {/* Mindfulness Modal */}
+      <AnimatePresence>
+        {showMindfulnessModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowMindfulnessModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Log Mindfulness</h3>
+                <button onClick={() => setShowMindfulnessModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">Duration (minutes)</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[5, 10, 15, 20, 30, 45, 60].map((duration) => (
+                    <button
+                      key={duration}
+                      onClick={() => setMindfulnessMinutes(duration)}
+                      className={`py-3 rounded-lg text-sm font-medium transition-all ${
+                        mindfulnessMinutes === duration
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-white/10 text-white/70 hover:bg-white/20'
+                      }`}
+                    >
+                      {duration}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-6 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-purple-300 mb-2">Daily Mindfulness Practice</p>
+                    <ul className="text-xs text-white/60 space-y-1">
+                      <li>• Meditation or breathing exercises</li>
+                      <li>• Mindful walking or body scans</li>
+                      <li>• Journaling or gratitude practice</li>
+                      <li>• Yoga or tai chi</li>
+                      <li>• Progressive muscle relaxation</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={addMindfulness} className="btn-primary w-full bg-purple-500 hover:bg-purple-600">
+                Log {mindfulnessMinutes} minutes
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Water Settings Modal */}
       <AnimatePresence>
         {showWaterSettingsModal && (
@@ -3582,6 +3822,101 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Info Modals */}
+      <InfoModal
+        show={showWaterInfo}
+        onClose={() => setShowWaterInfo(false)}
+        title="Water Intake"
+        content={
+          <div>
+            <p className="mb-3">Adequate daily water intake is essential for health:</p>
+            <ul className="space-y-2">
+              <li><strong>Men:</strong> 3.7 liters (125 oz) per day</li>
+              <li><strong>Women:</strong> 2.7 liters (91 oz) per day</li>
+            </ul>
+            <p className="mt-3 text-xs text-white/60">
+              These recommendations from the National Academies of Sciences include water from all beverages and foods.
+            </p>
+          </div>
+        }
+        link="https://nap.nationalacademies.org/read/10925"
+        linkText="National Academies of Sciences - Dietary Reference Intakes"
+      />
+
+      <InfoModal
+        show={showExerciseInfo}
+        onClose={() => setShowExerciseInfo(false)}
+        title="Exercise Benefits"
+        content={
+          <div>
+            <p className="mb-3">Regular physical activity provides major health benefits:</p>
+            <ul className="space-y-2">
+              <li><strong>30 minutes daily</strong> reduces cardiovascular disease risk by 30-40%</li>
+              <li>Reduces type 2 diabetes risk by approximately 30%</li>
+              <li>Improves mental health and cognitive function</li>
+              <li>Helps maintain healthy weight and bone density</li>
+            </ul>
+            <p className="mt-3 text-xs text-white/60">
+              Adults should aim for at least 150 minutes of moderate-intensity aerobic activity per week.
+            </p>
+          </div>
+        }
+        link="https://www.who.int/news-room/fact-sheets/detail/physical-activity"
+        linkText="WHO Physical Activity Fact Sheet"
+      />
+
+      <InfoModal
+        show={showStepsInfo}
+        onClose={() => setShowStepsInfo(false)}
+        title="Daily Steps"
+        content={
+          <div>
+            <p className="mb-3">Research shows significant health benefits from daily steps:</p>
+            <ul className="space-y-2">
+              <li><strong>7,000+ steps daily</strong> reduces all-cause mortality by 50-70%</li>
+              <li><strong>9,800 steps daily</strong> reduces dementia risk by 25%</li>
+              <li>Even 4,000 steps daily shows health improvements</li>
+              <li>Higher step counts associated with lower disease risk</li>
+            </ul>
+            <p className="mt-3 text-xs text-white/60">
+              Studies published in JAMA demonstrate the powerful impact of daily walking on longevity and brain health.
+            </p>
+          </div>
+        }
+        link="https://jamanetwork.com/journals/jama/fullarticle/2783711"
+        linkText="JAMA - Steps and Mortality Study"
+      />
+
+      <InfoModal
+        show={showMindfulnessInfo}
+        onClose={() => setShowMindfulnessInfo(false)}
+        title="Mindfulness Practice"
+        content={
+          <div>
+            <p className="mb-3">Regular mindfulness practice provides significant mental health benefits:</p>
+            <ul className="space-y-2">
+              <li><strong>Reduces anxiety</strong> by 30-40%</li>
+              <li><strong>Reduces depression</strong> symptoms by similar margins</li>
+              <li>Improves emotional regulation and stress response</li>
+              <li>Enhances focus, attention, and cognitive function</li>
+            </ul>
+            <p className="mt-3 mb-2 font-medium">Practice Options:</p>
+            <ul className="space-y-1 text-sm">
+              <li>• Meditation or breathing exercises</li>
+              <li>• Mindful walking or body scans</li>
+              <li>• Journaling or gratitude practice</li>
+              <li>• Yoga, tai chi, or progressive muscle relaxation</li>
+              <li>• DBT skills practice (distress tolerance, emotion regulation)</li>
+            </ul>
+            <p className="mt-3 text-xs text-white/60">
+              JAMA Psychiatry meta-analysis shows mindfulness-based interventions effectively reduce anxiety and depression.
+            </p>
+          </div>
+        }
+        link="https://jamanetwork.com/journals/jamapsychiatry/fullarticle/2798431"
+        linkText="JAMA Psychiatry - Mindfulness Interventions"
+      />
     </motion.div>
   )
 }
