@@ -91,6 +91,13 @@ export async function POST(request: NextRequest) {
         [uuidv4(), memberId]
       )
 
+      // Create default mindfulness goal
+      await executeQuery(
+        `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, frequency)
+         VALUES (?, ?, 'mindfulness', 'Daily Mindfulness', 'Practice mindfulness meditation to reduce stress and improve focus. Recommended: 15 minutes daily', 15, 'minutes', 'daily')`,
+        [uuidv4(), memberId]
+      )
+
       // Create one default custom goal
       await executeQuery(
         `INSERT INTO goals (id, member_id, type, title, description, is_custom, frequency)

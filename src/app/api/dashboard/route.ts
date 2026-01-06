@@ -70,6 +70,12 @@ export async function GET(request: NextRequest) {
         [member.id, today]
       )
 
+      // Get mindfulness total for today
+      const mindfulnessResult = await getFirstRow<{ total: number }>(
+        'SELECT COALESCE(SUM(duration_minutes), 0) as total FROM mindfulness_entries WHERE member_id = ? AND date = ?',
+        [member.id, today]
+      )
+
       // Get water goal target
       const waterGoal = goals.find(g => g.type === 'water')
       const waterTarget = waterGoal?.target_value || 3000
@@ -77,6 +83,10 @@ export async function GET(request: NextRequest) {
       // Get steps goal target
       const stepsGoal = goals.find(g => g.type === 'steps')
       const stepsTarget = stepsGoal?.target_value || 10000
+
+      // Get mindfulness goal target
+      const mindfulnessGoal = goals.find(g => g.type === 'mindfulness')
+      const mindfulnessTarget = mindfulnessGoal?.target_value || 15
 
       // Count completions
       const dailyGoals = goalsWithCompletion.filter(g => g.frequency !== 'weekly')
@@ -96,6 +106,10 @@ export async function GET(request: NextRequest) {
         steps_progress: {
           current: stepsResult?.total || 0,
           target: stepsTarget
+        },
+        mindfulness_progress: {
+          current: mindfulnessResult?.total || 0,
+          target: mindfulnessTarget
         },
         completed_count: dailyGoals.filter(g => g.is_completed).length,
         total_goals: dailyGoals.length,
