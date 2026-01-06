@@ -746,8 +746,6 @@ struct MindfulnessInfoContent: View {
         VStack(alignment: .leading, spacing: 16) {
             benefitsSection
 
-            dbtSection
-
             Text("Practice Options")
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -755,13 +753,16 @@ struct MindfulnessInfoContent: View {
                 .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 6) {
-                BulletPoint(text: "Breathing meditation", size: .caption)
-                BulletPoint(text: "Body scan", size: .caption)
-                BulletPoint(text: "Mindful walking", size: .caption)
-                BulletPoint(text: "Loving-kindness", size: .caption)
-                BulletPoint(text: "DBT exercises", size: .caption)
+                BulletPoint(text: "Breath awareness: Focus on natural breathing rhythm", size: .caption)
+                BulletPoint(text: "Body scan: Progressive relaxation from head to toe", size: .caption)
+                BulletPoint(text: "Mindful walking: Conscious attention to each step", size: .caption)
+                BulletPoint(text: "Loving-kindness meditation: Cultivate compassion for self and others", size: .caption)
+                BulletPoint(text: "Guided meditation: Follow audio instructions", size: .caption)
+                BulletPoint(text: "Mindful eating: Full sensory awareness while eating", size: .caption)
             }
             .foregroundColor(.white.opacity(0.8))
+
+            dbtSection
 
             Text("15 minutes daily recommended")
                 .font(.caption)
