@@ -19,6 +19,14 @@ A beautiful, full-stack goal tracking app for families built with Next.js, TypeS
 - **Log Activities**: Enter duration, activity type, and notes
 - **Custom Exercises**: Create and save your own exercise types
 
+### 👟 Step Tracking (iOS HealthKit Integration)
+- **Customizable Daily Goal**: Set your own target (default 10,000 steps)
+- **iOS Health Sync**: Automatic one-way sync from iOS Health app
+- **Manual Entry**: Log steps manually on web and mobile
+- **Hybrid Sync**: Auto-sync on app open + manual refresh
+- **Visual Progress**: Progress rings and step history
+- **Source Tracking**: Differentiate between HealthKit and manual entries
+
 ### 🎯 Personal Goals
 - **Daily Goals**: Up to 4 custom daily goals
 - **Weekly Goals**: Up to 4 custom weekly goals
@@ -54,6 +62,7 @@ A beautiful, full-stack goal tracking app for families built with Next.js, TypeS
 ### iOS App (SwiftUI)
 - **SwiftUI** - Native iOS UI
 - **Swift 5** - Programming language
+- **HealthKit** - Step tracking integration
 - **URLSession** - Networking
 
 ## 🚀 Getting Started
@@ -108,7 +117,17 @@ A beautiful, full-stack goal tracking app for families built with Next.js, TypeS
 
 1. Open `ios/FamilyGoals/FamilyGoals.xcodeproj` in Xcode
 2. Update the API URL in `APIService.swift`
-3. Build and run on simulator or device
+3. **Configure HealthKit** (for step tracking):
+   - Select project → Target "FamilyGoals" → Signing & Capabilities
+   - Click "+ Capability" → Add "HealthKit"
+   - Add to Info.plist:
+     ```xml
+     <key>NSHealthShareUsageDescription</key>
+     <string>Family Goals would like to access your step count to help you track your daily activity goals.</string>
+     ```
+4. Build and run on simulator or device
+
+**Note**: HealthKit step tracking only works on physical iOS devices, not in the simulator.
 
 ## ☁️ Deployment
 
@@ -135,6 +154,7 @@ family-goals/
 │   │   │   ├── goals/        # Goal CRUD
 │   │   │   ├── water/        # Water tracking
 │   │   │   ├── exercise/     # Exercise tracking
+│   │   │   ├── steps/        # Step tracking
 │   │   │   ├── notifications/# Notifications
 │   │   │   ├── photos/       # Photo management
 │   │   │   ├── settings/     # Theme settings
