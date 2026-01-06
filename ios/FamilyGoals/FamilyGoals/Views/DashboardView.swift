@@ -348,14 +348,11 @@ struct DashboardView: View {
         .task {
             await loadDashboard()
 
-            // Check authorization status and sync if authorized
+            // Check authorization status but don't auto-sync
             healthKitManager.checkAuthorizationStatus()
             print("HealthKit authorized: \(healthKitManager.isAuthorized)")
 
-            if healthKitManager.isAuthorized {
-                await syncStepsFromHealthKit()
-                await syncWaterFromHealthKit()
-            }
+            // Note: Auto-sync removed. Users can manually sync using the "Sync Health Data" button
         }
     }
 
