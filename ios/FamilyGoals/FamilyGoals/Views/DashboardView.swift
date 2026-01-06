@@ -8,6 +8,8 @@ struct DashboardView: View {
     @State private var dashboard: [DashboardMember] = []
     @State private var isLoading = true
     @State private var isSyncingSteps = false
+    @State private var syncErrorMessage: String?
+    @State private var showSyncSuccess = false
     
     var currentMemberData: DashboardMember? {
         dashboard.first { $0.id == appState.currentMember?.id }
@@ -48,7 +50,36 @@ struct DashboardView: View {
                     }
                 }
                 .padding(.horizontal)
-                
+
+                // Sync Status Messages
+                if let errorMessage = syncErrorMessage {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(Color.red.opacity(0.2))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+
+                if showSyncSuccess {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Steps synced successfully!")
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(Color.green.opacity(0.2))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+
                 if isLoading {
                     ProgressView()
                         .tint(.white)
@@ -142,6 +173,56 @@ struct DashboardView: View {
                                     Text("\(memberData.completed_count)/\(memberData.total_goals) daily goals")
                                         .font(.caption)
                                         .foregroundColor(.white.opacity(0.7))
+                                }
+
+                                // HealthKit Sync Button
+                                if HealthKitManager.isHealthKitAvailable() {
+                                    if healthKitManager.isAuthorized {
+                                        Button(action: {
+                                            Task {
+                                                await syncStepsFromHealthKit()
+                                            }
+                                        }) {
+                                            HStack(spacing: 6) {
+                                                if isSyncingSteps {
+                                                    ProgressView()
+                                                        .scaleEffect(0.7)
+                                                        .tint(.white)
+                                                } else {
+                                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                                        .font(.caption)
+                                                }
+                                                Text(isSyncingSteps ? "Syncing..." : "Sync Health Data")
+                                                    .font(.caption)
+                                                    .fontWeight(.medium)
+                                            }
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .background(Color.orange.opacity(0.8))
+                                            .cornerRadius(8)
+                                        }
+                                        .disabled(isSyncingSteps)
+                                    } else {
+                                        Button(action: {
+                                            Task {
+                                                try? await healthKitManager.requestAuthorization()
+                                            }
+                                        }) {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "heart.text.square")
+                                                    .font(.caption)
+                                                Text("Connect Health App")
+                                                    .font(.caption)
+                                                    .fontWeight(.medium)
+                                            }
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .background(Color.orange.opacity(0.6))
+                                            .cornerRadius(8)
+                                        }
+                                    }
                                 }
                             }
                             .padding()
@@ -270,33 +351,55 @@ struct DashboardView: View {
     private func syncStepsFromHealthKit() async {
         await MainActor.run {
             isSyncingSteps = true
+            syncErrorMessage = nil
+            showSyncSuccess = false
         }
 
         do {
             guard let memberId = appState.currentMember?.id else {
                 await MainActor.run {
                     isSyncingSteps = false
+                    syncErrorMessage = "No member selected"
                 }
                 return
             }
 
-            let steps = await healthKitManager.fetchTodaySteps()
+            print("Fetching steps from HealthKit...")
+            let steps = try await healthKitManager.fetchTodaySteps()
+            print("Fetched \(steps) steps from HealthKit")
 
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             let date = dateFormatter.string(from: Date())
 
+            print("Syncing \(steps) steps to server for date \(date)...")
             try await APIService.shared.syncSteps(memberId: memberId, steps: Int(steps), date: date)
+            print("Successfully synced steps to server")
 
             await loadDashboard()
 
             await MainActor.run {
                 isSyncingSteps = false
+                showSyncSuccess = true
+            }
+
+            // Hide success message after 2 seconds
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                showSyncSuccess = false
             }
         } catch {
             print("Failed to sync steps from HealthKit: \(error)")
+            let errorMsg = (error as? HealthKitError)?.localizedDescription ?? error.localizedDescription
             await MainActor.run {
                 isSyncingSteps = false
+                syncErrorMessage = errorMsg
+            }
+
+            // Hide error message after 3 seconds
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            await MainActor.run {
+                syncErrorMessage = nil
             }
         }
     }
