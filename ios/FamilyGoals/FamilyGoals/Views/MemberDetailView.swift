@@ -461,28 +461,35 @@ struct MemberDetailView: View {
                             .foregroundColor(.orange)
                         }
                     } else if isOwnProfile && HealthKitManager.isHealthKitAvailable() {
-                        Button("Connect Health App") {
-                            Task {
-                                do {
-                                    print("🔘 Connect Health App button tapped")
-                                    try await healthKitManager.requestAuthorization()
-                                    print("🔄 Re-checking authorization status...")
-                                    healthKitManager.checkAuthorizationStatus()
+                        VStack(spacing: 4) {
+                            Button("Connect Health App") {
+                                Task {
+                                    do {
+                                        print("🔘 Connect Health App button tapped")
+                                        try await healthKitManager.requestAuthorization()
+                                        print("🔄 Re-checking authorization status...")
+                                        healthKitManager.checkAuthorizationStatus()
 
-                                    // If authorized, try syncing immediately
-                                    if healthKitManager.isAuthorized {
-                                        print("✅ Authorized! Syncing steps...")
-                                        await syncStepsFromHealthKit()
-                                    } else {
-                                        print("⚠️ Not authorized yet. User may need to grant permission in Health app.")
+                                        // If authorized, try syncing immediately
+                                        if healthKitManager.isAuthorized {
+                                            print("✅ Authorized! Syncing steps...")
+                                            await syncStepsFromHealthKit()
+                                        } else {
+                                            print("⚠️ Not authorized yet.")
+                                            print("💡 TIP: Open Health app → Profile → Apps → Family Goals → Enable permissions")
+                                        }
+                                    } catch {
+                                        print("❌ Authorization error: \(error)")
                                     }
-                                } catch {
-                                    print("❌ Authorization error: \(error)")
                                 }
                             }
+                            .font(.caption)
+                            .foregroundColor(.orange.opacity(0.7))
+
+                            Text("Requires Health app permissions")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.4))
                         }
-                        .font(.caption)
-                        .foregroundColor(.orange.opacity(0.7))
                     }
                 }
             }
