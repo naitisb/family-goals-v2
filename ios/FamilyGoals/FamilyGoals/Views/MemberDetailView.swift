@@ -9,11 +9,18 @@ struct MemberDetailView: View {
     @State private var waterData: (current: Double, target: Double) = (0, 2000)
     @State private var exerciseData: (current: Double, target: Double) = (0, 30)
     @State private var stepsData: (current: Int, target: Int) = (0, 10000)
+    @State private var mindfulnessData: (current: Int, target: Int) = (0, 15)
     @State private var goals: [Goal] = []
     @State private var showWaterSheet = false
     @State private var showExerciseSheet = false
+    @State private var showMindfulnessSheet = false
+    @State private var showWaterInfo = false
+    @State private var showExerciseInfo = false
+    @State private var showStepsInfo = false
+    @State private var showMindfulnessInfo = false
     @State private var waterAmount: Double = 250
     @State private var exerciseMinutes: Int = 30
+    @State private var mindfulnessMinutes: Int = 15
     @State private var exerciseActivity = "Walking"
     
     var isOwnProfile: Bool {
@@ -21,7 +28,7 @@ struct MemberDetailView: View {
     }
     
     var dailyGoals: [Goal] {
-        goals.filter { $0.frequency != "weekly" && $0.type != "water" && $0.type != "exercise" && $0.type != "steps" }
+        goals.filter { $0.frequency != "weekly" && $0.type != "water" && $0.type != "exercise" && $0.type != "steps" && $0.type != "mindfulness" }
     }
     
     var weeklyGoals: [Goal] {
@@ -89,6 +96,11 @@ struct MemberDetailView: View {
                         HStack {
                             Image(systemName: "drop.fill")
                                 .foregroundColor(.cyan)
+                            Button(action: { showWaterInfo = true }) {
+                                Image(systemName: "info.circle")
+                                    .font(.caption)
+                                    .foregroundColor(.cyan.opacity(0.6))
+                            }
                             Spacer()
                             if isOwnProfile {
                                 Button("+ Add") {
@@ -129,6 +141,11 @@ struct MemberDetailView: View {
                         HStack {
                             Image(systemName: "figure.run")
                                 .foregroundColor(.green)
+                            Button(action: { showExerciseInfo = true }) {
+                                Image(systemName: "info.circle")
+                                    .font(.caption)
+                                    .foregroundColor(.green.opacity(0.6))
+                            }
                             Spacer()
                             if isOwnProfile {
                                 Button("+ Add") {
@@ -180,6 +197,11 @@ struct MemberDetailView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.white)
+                        Button(action: { showStepsInfo = true }) {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                                .foregroundColor(.orange.opacity(0.6))
+                        }
                         Spacer()
                     }
 
@@ -228,6 +250,79 @@ struct MemberDetailView: View {
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background(Color.orange.opacity(0.6))
+                                    .cornerRadius(8)
+                                }
+                            }
+                        }
+
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(16)
+                .padding(.horizontal)
+
+                // Mindfulness
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "brain.head.profile")
+                            .foregroundColor(.purple)
+                        Text("Daily Mindfulness")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                        Button(action: { showMindfulnessInfo = true }) {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                                .foregroundColor(.purple.opacity(0.6))
+                        }
+                        Spacer()
+                    }
+
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                                .frame(width: 80, height: 80)
+
+                            Circle()
+                                .trim(from: 0, to: min(1, Double(mindfulnessData.current) / Double(mindfulnessData.target)))
+                                .stroke(Color.purple, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                                .frame(width: 80, height: 80)
+                                .rotationEffect(.degrees(-90))
+
+                            Text("\(Int(Double(mindfulnessData.current) / Double(mindfulnessData.target) * 100))%")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text("\(mindfulnessData.current)")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                Text("/ \(mindfulnessData.target) min")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+
+                            if isOwnProfile {
+                                Button(action: {
+                                    showMindfulnessSheet = true
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.caption)
+                                        Text("Log Session")
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.purple.opacity(0.6))
                                     .cornerRadius(8)
                                 }
                             }
@@ -293,10 +388,48 @@ struct MemberDetailView: View {
                 await addExercise()
             }
         }
+        .sheet(isPresented: $showMindfulnessSheet) {
+            MindfulnessSheet(minutes: $mindfulnessMinutes) {
+                await addMindfulness()
+            }
+        }
+        .sheet(isPresented: $showWaterInfo) {
+            InfoSheet(
+                title: "Hydration Facts",
+                icon: "drop.fill",
+                color: .cyan,
+                content: WaterInfoContent()
+            )
+        }
+        .sheet(isPresented: $showExerciseInfo) {
+            InfoSheet(
+                title: "Exercise Benefits",
+                icon: "figure.run",
+                color: .green,
+                content: ExerciseInfoContent()
+            )
+        }
+        .sheet(isPresented: $showStepsInfo) {
+            InfoSheet(
+                title: "Walking Benefits",
+                icon: "figure.walk",
+                color: .orange,
+                content: StepsInfoContent()
+            )
+        }
+        .sheet(isPresented: $showMindfulnessInfo) {
+            InfoSheet(
+                title: "Mindfulness Benefits",
+                icon: "brain.head.profile",
+                color: .purple,
+                content: MindfulnessInfoContent()
+            )
+        }
         .onAppear {
             waterData = (member.water_progress.current, member.water_progress.target)
             exerciseData = (member.exercise_progress.current, member.exercise_progress.target)
             stepsData = (Int(member.steps_progress.current), Int(member.steps_progress.target))
+            mindfulnessData = (Int(member.mindfulness_progress.current), Int(member.mindfulness_progress.target))
             goals = member.goals
         }
     }
@@ -359,6 +492,22 @@ struct MemberDetailView: View {
         }
     }
 
+    private func addMindfulness() async {
+        do {
+            _ = try await APIService.shared.addMindfulness(
+                memberId: member.id,
+                durationMinutes: mindfulnessMinutes
+            )
+            let response = try await APIService.shared.getMindfulness(memberId: member.id)
+            await MainActor.run {
+                mindfulnessData = (response.total, response.target)
+                showMindfulnessSheet = false
+            }
+        } catch {
+            print("Failed to add mindfulness: \(error)")
+        }
+    }
+
     private func syncStepsFromHealthKit() async {
         guard isOwnProfile && healthKitManager.isAuthorized else { return }
 
@@ -381,6 +530,343 @@ struct MemberDetailView: View {
             }
         } catch {
             print("Failed to sync steps from HealthKit: \(error)")
+        }
+    }
+}
+
+// MARK: - Info Sheet
+struct InfoSheet<Content: View>: View {
+    @Environment(\.dismiss) var dismiss
+    let title: String
+    let icon: String
+    let color: Color
+    let content: Content
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    content
+                }
+                .padding()
+            }
+            .background(Color(red: 0.1, green: 0.1, blue: 0.24))
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Water Info Content
+struct WaterInfoContent: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Recommended Daily Water Intake")
+                .font(.headline)
+                .foregroundColor(.cyan)
+
+            VStack(alignment: .leading, spacing: 8) {
+                BulletPoint(text: "Men: 3.7L (125 oz)")
+                BulletPoint(text: "Women: 2.7L (91 oz)")
+                BulletPoint(text: "Teens: 2-3L")
+                BulletPoint(text: "Children: 1-2L")
+            }
+            .foregroundColor(.white.opacity(0.9))
+
+            Link(destination: URL(string: "https://nap.nationalacademies.org/read/10925")!) {
+                HStack {
+                    Image(systemName: "link")
+                    Text("National Academies of Sciences")
+                        .underline()
+                }
+                .font(.caption)
+                .foregroundColor(.cyan)
+            }
+        }
+    }
+}
+
+// MARK: - Exercise Info Content
+struct ExerciseInfoContent: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Benefits of 30 Minutes Daily Exercise")
+                .font(.headline)
+                .foregroundColor(.green)
+
+            VStack(alignment: .leading, spacing: 8) {
+                BulletPoint(text: "Reduces risk of cardiovascular disease by 30-40%")
+                BulletPoint(text: "Lowers risk of type 2 diabetes by 30%")
+                BulletPoint(text: "Reduces symptoms of depression and anxiety")
+                BulletPoint(text: "Improves cognitive function and memory")
+                BulletPoint(text: "Strengthens bones and muscles")
+                BulletPoint(text: "Helps maintain healthy weight")
+            }
+            .foregroundColor(.white.opacity(0.9))
+
+            Text("Moderate-intensity exercise for 150 minutes/week (30 min × 5 days) or 75 minutes of vigorous activity is recommended.")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+                .padding(.top, 4)
+
+            Link(destination: URL(string: "https://www.who.int/news-room/fact-sheets/detail/physical-activity")!) {
+                HStack {
+                    Image(systemName: "link")
+                    Text("WHO Physical Activity Guidelines")
+                        .underline()
+                }
+                .font(.caption)
+                .foregroundColor(.green)
+            }
+        }
+    }
+}
+
+// MARK: - Steps Info Content
+struct StepsInfoContent: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Benefits of Daily Walking")
+                .font(.headline)
+                .foregroundColor(.orange)
+
+            VStack(alignment: .leading, spacing: 8) {
+                BulletPoint(text: "7,000+ steps/day reduces all-cause mortality risk by 50-70%")
+                BulletPoint(text: "Lowers blood pressure and improves cardiovascular health")
+                BulletPoint(text: "Reduces risk of dementia by 25% (walking 9,800 steps/day)")
+                BulletPoint(text: "Improves mood and reduces stress")
+                BulletPoint(text: "Helps maintain bone density")
+                BulletPoint(text: "Supports healthy weight management")
+            }
+            .foregroundColor(.white.opacity(0.9))
+
+            Text("Optimal Range")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.orange)
+                .padding(.top, 4)
+
+            Text("7,000-10,000 steps per day provides maximum health benefits. Even 4,000 steps/day shows significant improvements over sedentary behavior.")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+
+            Link(destination: URL(string: "https://jamanetwork.com/journals/jama/fullarticle/2783711")!) {
+                HStack {
+                    Image(systemName: "link")
+                    Text("JAMA: Steps Per Day and All-Cause Mortality")
+                        .underline()
+                }
+                .font(.caption)
+                .foregroundColor(.orange)
+            }
+
+            Link(destination: URL(string: "https://jamanetwork.com/journals/jamaneurology/fullarticle/2805553")!) {
+                HStack {
+                    Image(systemName: "link")
+                    Text("JAMA Neurology: Walking and Dementia Risk")
+                        .underline()
+                }
+                .font(.caption)
+                .foregroundColor(.orange)
+            }
+        }
+    }
+}
+
+// MARK: - Mindfulness Info Content
+struct MindfulnessInfoContent: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Benefits of Mindfulness Practice")
+                .font(.headline)
+                .foregroundColor(.purple)
+
+            VStack(alignment: .leading, spacing: 8) {
+                BulletPoint(text: "Reduces stress and anxiety symptoms by 30-40%")
+                BulletPoint(text: "Improves attention and focus")
+                BulletPoint(text: "Enhances emotional regulation")
+                BulletPoint(text: "Decreases symptoms of depression")
+                BulletPoint(text: "Lowers blood pressure and cortisol levels")
+                BulletPoint(text: "Improves sleep quality")
+            }
+            .foregroundColor(.white.opacity(0.9))
+
+            Text("DBT Mindfulness Skills")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.purple)
+                .padding(.top, 8)
+
+            Text("Dialectical Behavior Therapy (DBT) teaches practical mindfulness skills:")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+
+            VStack(alignment: .leading, spacing: 6) {
+                BulletPoint(text: "Observe: Notice your thoughts and feelings without judgment", size: .caption)
+                BulletPoint(text: "Describe: Put words to your experience", size: .caption)
+                BulletPoint(text: "Participate: Fully engage in the present moment", size: .caption)
+                BulletPoint(text: "One-mindfully: Focus on one thing at a time", size: .caption)
+                BulletPoint(text: "Non-judgmentally: Accept without labeling as good/bad", size: .caption)
+                BulletPoint(text: "Effectively: Do what works in the situation", size: .caption)
+            }
+            .foregroundColor(.white.opacity(0.8))
+
+            Text("Practice Options")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.purple)
+                .padding(.top, 8)
+
+            VStack(alignment: .leading, spacing: 6) {
+                BulletPoint(text: "Focused breathing meditation", size: .caption)
+                BulletPoint(text: "Body scan", size: .caption)
+                BulletPoint(text: "Mindful walking", size: .caption)
+                BulletPoint(text: "Loving-kindness meditation", size: .caption)
+                BulletPoint(text: "DBT mindfulness exercises", size: .caption)
+                BulletPoint(text: "Mindful eating", size: .caption)
+            }
+            .foregroundColor(.white.opacity(0.8))
+
+            Text("15 minutes daily is recommended for consistent benefits.")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+                .padding(.top, 4)
+
+            Link(destination: URL(string: "https://jamanetwork.com/journals/jamapsychiatry/fullarticle/2798431")!) {
+                HStack {
+                    Image(systemName: "link")
+                    Text("JAMA Psychiatry: Mindfulness for Anxiety")
+                        .underline()
+                }
+                .font(.caption)
+                .foregroundColor(.purple)
+            }
+
+            Link(destination: URL(string: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6671893/")!) {
+                HStack {
+                    Image(systemName: "link")
+                    Text("Mindfulness-Based Interventions: Systematic Review")
+                        .underline()
+                }
+                .font(.caption)
+                .foregroundColor(.purple)
+            }
+        }
+    }
+}
+
+// MARK: - Mindfulness Sheet
+struct MindfulnessSheet: View {
+    @Environment(\.dismiss) var dismiss
+    @Binding var minutes: Int
+    let onAdd: () async -> Void
+
+    @State private var isAdding = false
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Illustration
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [Color.purple.opacity(0.3), Color.purple.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 120, height: 120)
+
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 50))
+                        .foregroundColor(.purple)
+                }
+                .padding(.top, 32)
+
+                VStack(spacing: 16) {
+                    Text("Log Mindfulness Session")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+
+                    // Duration Picker
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Duration")
+                            .font(.headline)
+                            .foregroundColor(.white)
+
+                        Picker("Minutes", selection: $minutes) {
+                            ForEach([5, 10, 15, 20, 30, 45, 60], id: \.self) { min in
+                                Text("\(min) min").tag(min)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 150)
+                    }
+
+                    Button(action: {
+                        isAdding = true
+                        Task {
+                            await onAdd()
+                            isAdding = false
+                        }
+                    }) {
+                        HStack {
+                            if isAdding {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Log Session")
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.purple)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isAdding)
+                    .padding(.horizontal)
+                }
+                .padding()
+
+                Spacer()
+            }
+            .padding()
+            .background(Color(red: 0.1, green: 0.1, blue: 0.24))
+            .navigationTitle("Mindfulness")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Bullet Point Helper
+struct BulletPoint: View {
+    let text: String
+    var size: Font = .subheadline
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("•")
+                .font(size)
+            Text(text)
+                .font(size)
         }
     }
 }
@@ -630,6 +1116,7 @@ struct ExerciseSheet: View {
             water_progress: ProgressData(current: 1500, target: 2000),
             exercise_progress: ProgressData(current: 20, target: 30),
             steps_progress: ProgressData(current: 5432, target: 10000),
+            mindfulness_progress: ProgressData(current: 10, target: 15),
             completed_count: 3,
             total_goals: 5,
             weekly_completed_count: 1,

@@ -177,6 +177,26 @@ class APIService {
         return result
     }
 
+    // Mindfulness
+    func getMindfulness(memberId: String, date: String? = nil) async throws -> MindfulnessResponse {
+        var endpoint = "/mindfulness?memberId=\(memberId)"
+        if let date = date {
+            endpoint += "&date=\(date)"
+        }
+        return try await request(endpoint)
+    }
+
+    func addMindfulness(memberId: String, durationMinutes: Int, notes: String? = nil) async throws -> SimpleResponse {
+        var body: [String: Any] = [
+            "memberId": memberId,
+            "duration_minutes": durationMinutes
+        ]
+        if let notes = notes {
+            body["notes"] = notes
+        }
+        return try await request("/mindfulness", method: "POST", body: body)
+    }
+
     // Goals
     func completeGoal(goalId: String, memberId: String) async throws -> SimpleResponse {
         return try await request("/goals/\(goalId)/complete", method: "POST", body: [

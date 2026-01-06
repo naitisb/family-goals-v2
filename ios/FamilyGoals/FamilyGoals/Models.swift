@@ -131,6 +131,7 @@ struct DashboardMember: Codable, Identifiable {
     let water_progress: ProgressData
     let exercise_progress: ProgressData
     let steps_progress: ProgressData
+    let mindfulness_progress: ProgressData
     let completed_count: Int
     let total_goals: Int
     let weekly_completed_count: Int
@@ -177,6 +178,23 @@ struct ExerciseResponse: Codable {
 
 struct StepsResponse: Codable {
     let entries: [StepsEntry]
+    let total: Int
+    let target: Int
+    let unit: String?
+}
+
+struct MindfulnessEntry: Codable, Identifiable {
+    let id: String
+    let member_id: String
+    let duration_minutes: Int
+    let date: String
+    let source: String
+    let notes: String?
+    let created_at: String
+}
+
+struct MindfulnessResponse: Codable {
+    let entries: [MindfulnessEntry]
     let total: Int
     let target: Int
     let unit: String?
