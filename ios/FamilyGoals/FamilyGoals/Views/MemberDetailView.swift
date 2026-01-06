@@ -532,6 +532,7 @@ struct ExerciseSheet: View {
             goals: [],
             water_progress: ProgressData(current: 1500, target: 2000),
             exercise_progress: ProgressData(current: 20, target: 30),
+            steps_progress: ProgressData(current: 5432, target: 10000),
             completed_count: 3,
             total_goals: 5,
             weekly_completed_count: 1,
@@ -540,6 +541,7 @@ struct ExerciseSheet: View {
         onBack: {}
     )
     .environmentObject(AppState())
+    .environmentObject(HealthKitManager())
 }
 
 

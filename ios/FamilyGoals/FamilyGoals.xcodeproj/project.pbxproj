@@ -255,6 +255,7 @@
 				DEVELOPMENT_TEAM = 6W4L44X8ZR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Family Goals would like to read your step count and water intake to help you track your daily activity and hydration goals.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Family Goals would like to save your water intake to the Health app so all your health data stays in sync.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -290,6 +291,7 @@
 				DEVELOPMENT_TEAM = 6W4L44X8ZR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Family Goals would like to read your step count and water intake to help you track your daily activity and hydration goals.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Family Goals would like to save your water intake to the Health app so all your health data stays in sync.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

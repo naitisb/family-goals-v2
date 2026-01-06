@@ -495,6 +495,7 @@ struct ProgressBar: View {
 #Preview {
     DashboardView { _ in }
         .environmentObject(AppState())
+        .environmentObject(HealthKitManager())
 }
 
 

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import HealthKit
+internal import Combine
 
 class HealthKitManager: ObservableObject {
     let healthStore = HKHealthStore()
