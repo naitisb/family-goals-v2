@@ -3,11 +3,19 @@ import SwiftUI
 @main
 struct FamilyGoalsApp: App {
     @StateObject private var appState = AppState()
-    
+    @StateObject private var healthKitManager = HealthKitManager()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(healthKitManager)
+                .task {
+                    // Request HealthKit authorization when app launches
+                    if HealthKitManager.isHealthKitAvailable() {
+                        try? await healthKitManager.requestAuthorization()
+                    }
+                }
         }
     }
 }

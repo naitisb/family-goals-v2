@@ -2,10 +2,12 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var healthKitManager: HealthKitManager
     let onViewMember: (DashboardMember) -> Void
-    
+
     @State private var dashboard: [DashboardMember] = []
     @State private var isLoading = true
+    @State private var isSyncingSteps = false
     
     var currentMemberData: DashboardMember? {
         dashboard.first { $0.id == appState.currentMember?.id }
@@ -72,40 +74,62 @@ struct DashboardView: View {
                                             Circle()
                                                 .stroke(Color.white.opacity(0.1), lineWidth: 8)
                                                 .frame(width: 80, height: 80)
-                                            
+
                                             Circle()
                                                 .trim(from: 0, to: memberData.water_progress.percentage)
                                                 .stroke(Color.cyan, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                                                 .frame(width: 80, height: 80)
                                                 .rotationEffect(.degrees(-90))
-                                            
+
                                             Image(systemName: "drop.fill")
                                                 .foregroundColor(.cyan)
                                         }
-                                        
+
                                         Text("\(String(format: "%.1f", memberData.water_progress.current / 1000))L")
                                             .font(.caption)
                                             .foregroundColor(.white)
                                     }
-                                    
+
                                     // Exercise
                                     VStack {
                                         ZStack {
                                             Circle()
                                                 .stroke(Color.white.opacity(0.1), lineWidth: 8)
                                                 .frame(width: 80, height: 80)
-                                            
+
                                             Circle()
                                                 .trim(from: 0, to: memberData.exercise_progress.percentage)
                                                 .stroke(Color.green, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                                                 .frame(width: 80, height: 80)
                                                 .rotationEffect(.degrees(-90))
-                                            
+
                                             Image(systemName: "figure.run")
                                                 .foregroundColor(.green)
                                         }
-                                        
+
                                         Text("\(Int(memberData.exercise_progress.current)) min")
+                                            .font(.caption)
+                                            .foregroundColor(.white)
+                                    }
+
+                                    // Steps
+                                    VStack {
+                                        ZStack {
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                                                .frame(width: 80, height: 80)
+
+                                            Circle()
+                                                .trim(from: 0, to: memberData.steps_progress.percentage)
+                                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                                                .frame(width: 80, height: 80)
+                                                .rotationEffect(.degrees(-90))
+
+                                            Image(systemName: "figure.walk")
+                                                .foregroundColor(.orange)
+                                        }
+
+                                        Text(memberData.steps_progress.current >= 1000 ? "\(String(format: "%.1f", memberData.steps_progress.current / 1000))K steps" : "\(Int(memberData.steps_progress.current)) steps")
                                             .font(.caption)
                                             .foregroundColor(.white)
                                     }
@@ -217,9 +241,13 @@ struct DashboardView: View {
         }
         .task {
             await loadDashboard()
+
+            if healthKitManager.isAuthorized {
+                await syncStepsFromHealthKit()
+            }
         }
     }
-    
+
     private func loadDashboard() async {
         do {
             let data = try await APIService.shared.getDashboard()
@@ -231,6 +259,40 @@ struct DashboardView: View {
             print("Failed to load dashboard: \(error)")
             await MainActor.run {
                 isLoading = false
+            }
+        }
+    }
+
+    private func syncStepsFromHealthKit() async {
+        await MainActor.run {
+            isSyncingSteps = true
+        }
+
+        do {
+            guard let memberId = appState.currentMember?.id else {
+                await MainActor.run {
+                    isSyncingSteps = false
+                }
+                return
+            }
+
+            let steps = await healthKitManager.fetchTodaySteps()
+
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let date = dateFormatter.string(from: Date())
+
+            try await APIService.shared.syncSteps(memberId: memberId, steps: Int(steps), date: date)
+
+            await loadDashboard()
+
+            await MainActor.run {
+                isSyncingSteps = false
+            }
+        } catch {
+            print("Failed to sync steps from HealthKit: \(error)")
+            await MainActor.run {
+                isSyncingSteps = false
             }
         }
     }

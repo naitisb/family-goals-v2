@@ -7,7 +7,7 @@ import {
   LogOut, Users, User, Lock, Eye, EyeOff, ChevronRight,
   Edit3, X, Home as HomeIcon, Settings, Palette, ChevronLeft, Bell,
   Clock, Trash2, Calendar, BarChart3, Camera, Image, Upload, Save,
-  UserPlus, UserMinus, Activity, Heart
+  UserPlus, UserMinus, Activity, Heart, Info, ExternalLink
 } from 'lucide-react'
 import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
 import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit, convertWaterToMl } from '@/lib/utils'
@@ -2796,6 +2796,31 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                 ))}
               </div>
 
+              {/* Water Intake Recommendations */}
+              <div className="mb-6 p-4 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                <div className="flex items-start gap-2 mb-2">
+                  <Info className="w-4 h-4 text-sky-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-sky-300 mb-1">Daily Water Recommendations</p>
+                    <ul className="text-xs text-white/60 space-y-0.5">
+                      <li>• Adult Men: <span className="text-white/80">3.7L (125 oz)</span></li>
+                      <li>• Adult Women: <span className="text-white/80">2.7L (91 oz)</span></li>
+                      <li>• Teenagers: <span className="text-white/80">2-3L</span></li>
+                      <li>• Children: <span className="text-white/80">1-2L</span></li>
+                    </ul>
+                    <a
+                      href="https://nap.nationalacademies.org/read/10925"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-sky-400 hover:text-sky-300 mt-2 inline-flex items-center gap-1"
+                    >
+                      Source: National Academies of Sciences
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+
               <button onClick={addWater} className="btn-primary w-full">
                 Add {waterAmount}ml
               </button>
@@ -3075,6 +3100,31 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Water Intake Recommendations */}
+                <div className="p-4 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-sky-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-sky-300 mb-1">Daily Water Recommendations</p>
+                      <ul className="text-xs text-white/60 space-y-0.5">
+                        <li>• Adult Men: <span className="text-white/80">3.7L (125 oz)</span></li>
+                        <li>• Adult Women: <span className="text-white/80">2.7L (91 oz)</span></li>
+                        <li>• Teenagers: <span className="text-white/80">2-3L</span></li>
+                        <li>• Children: <span className="text-white/80">1-2L</span></li>
+                      </ul>
+                      <a
+                        href="https://nap.nationalacademies.org/read/10925"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-sky-400 hover:text-sky-300 mt-2 inline-flex items-center gap-1"
+                      >
+                        Source: National Academies of Sciences
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
                 </div>
 
                 {waterError && (
