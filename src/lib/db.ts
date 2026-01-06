@@ -203,6 +203,19 @@ CREATE TABLE IF NOT EXISTS steps_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_steps_member_date ON steps_entries(member_id, date);
+
+CREATE TABLE IF NOT EXISTS mindfulness_entries (
+  id TEXT PRIMARY KEY,
+  member_id TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  source TEXT DEFAULT 'manual',
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (member_id) REFERENCES family_members(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_mindfulness_member_date ON mindfulness_entries(member_id, date);
 `
 
 export async function initializeSchema() {
@@ -252,6 +265,27 @@ async function runMigrations() {
         await executeQuery(
           `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, frequency)
            VALUES (?, ?, 'steps', 'Daily Steps', 'Track your daily steps and stay active', 10000, 'steps', 'daily')`,
+          [uuidv4(), member.id]
+        )
+      }
+    }
+  } catch (error: unknown) {
+    // Migration already applied or error, ignore
+  }
+
+  // Create default mindfulness goal for existing users who don't have one
+  try {
+    const { v4: uuidv4 } = await import('uuid')
+    const members = await getAllRows<{ id: string }>('SELECT id FROM family_members')
+    for (const member of members) {
+      const existingGoal = await getFirstRow(
+        "SELECT id FROM goals WHERE member_id = ? AND type = 'mindfulness'",
+        [member.id]
+      )
+      if (!existingGoal) {
+        await executeQuery(
+          `INSERT INTO goals (id, member_id, type, title, description, target_value, target_unit, frequency)
+           VALUES (?, ?, 'mindfulness', 'Daily Mindfulness', 'Practice mindfulness meditation to reduce stress and improve focus. Recommended: 15 minutes daily', 15, 'minutes', 'daily')`,
           [uuidv4(), member.id]
         )
       }
