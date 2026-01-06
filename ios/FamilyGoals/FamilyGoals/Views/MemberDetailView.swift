@@ -464,10 +464,20 @@ struct MemberDetailView: View {
                         Button("Connect Health App") {
                             Task {
                                 do {
+                                    print("🔘 Connect Health App button tapped")
                                     try await healthKitManager.requestAuthorization()
+                                    print("🔄 Re-checking authorization status...")
                                     healthKitManager.checkAuthorizationStatus()
+
+                                    // If authorized, try syncing immediately
+                                    if healthKitManager.isAuthorized {
+                                        print("✅ Authorized! Syncing steps...")
+                                        await syncStepsFromHealthKit()
+                                    } else {
+                                        print("⚠️ Not authorized yet. User may need to grant permission in Health app.")
+                                    }
                                 } catch {
-                                    print("Authorization error: \(error)")
+                                    print("❌ Authorization error: \(error)")
                                 }
                             }
                         }

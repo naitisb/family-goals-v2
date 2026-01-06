@@ -70,11 +70,17 @@ class HealthKitManager: ObservableObject {
         try await healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead)
         print("✅ Authorization request completed")
 
+        // Wait a moment for the system to process the authorization
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
         // Check if we actually got authorization
         let status = healthStore.authorizationStatus(for: stepType)
         print("📊 Post-authorization status: \(status.rawValue)")
 
+        // Important: HealthKit may return .notDetermined even after authorization
+        // if the user granted access. We need to try fetching data to verify.
         let authorized = (status == .sharingAuthorized)
+
         await MainActor.run {
             self.isAuthorized = authorized
             print("✅ isAuthorized set to: \(authorized)")
