@@ -7,7 +7,7 @@ import {
   LogOut, Users, User, Lock, Eye, EyeOff, ChevronRight,
   Edit3, X, Home as HomeIcon, Settings, Palette, ChevronLeft, Bell,
   Clock, Trash2, Calendar, BarChart3, Camera, Image, Upload, Save,
-  UserPlus, UserMinus
+  UserPlus, UserMinus, Activity, Heart
 } from 'lucide-react'
 import { Member, Goal, DashboardMember, FamilySettings } from '@/types'
 import { AVATAR_COLORS, GRADIENT_THEMES, WATER_UNITS, convertMlToUnit, convertWaterToMl } from '@/lib/utils'
@@ -1735,10 +1735,18 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
   const [exerciseActivity, setExerciseActivity] = useState('Walking')
   const [showWaterModal, setShowWaterModal] = useState(false)
   const [showExerciseModal, setShowExerciseModal] = useState(false)
+  const [showStepsModal, setShowStepsModal] = useState(false)
   const [showWaterSettingsModal, setShowWaterSettingsModal] = useState(false)
   const [goals, setGoals] = useState<Goal[]>(member.goals || [])
   const [waterData, setWaterData] = useState(member.water_progress)
   const [exerciseData, setExerciseData] = useState(member.exercise_progress)
+  const [stepsData, setStepsData] = useState<{ entries: any[]; total: number; target: number; unit: string }>({
+    entries: [],
+    total: member.steps_progress?.current || 0,
+    target: member.steps_progress?.target || 10000,
+    unit: 'steps'
+  })
+  const [logSteps, setLogSteps] = useState('')
   const [allMembers, setAllMembers] = useState<Member[]>([])
   const [customExercises, setCustomExercises] = useState<any[]>([])
   const [showAddExerciseInline, setShowAddExerciseInline] = useState(false)
@@ -1764,6 +1772,13 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
       loadCustomExercises()
     }
   }, [showExerciseModal])
+
+  // Load steps data when steps modal opens
+  useEffect(() => {
+    if (showStepsModal) {
+      fetchSteps()
+    }
+  }, [showStepsModal])
 
   const loadCustomExercises = async () => {
     try {
@@ -1902,6 +1917,35 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
       onUpdate()
     } catch (err) {
       console.error('Failed to add exercise:', err)
+    }
+  }
+
+  const fetchSteps = async () => {
+    try {
+      const data = await api.fetch<{ entries: any[]; total: number; target: number; unit: string }>(
+        `/steps?memberId=${member.id}`
+      )
+      setStepsData(data)
+    } catch (err) {
+      console.error('Failed to fetch steps:', err)
+    }
+  }
+
+  const handleLogSteps = async () => {
+    const steps = parseInt(logSteps)
+    if (!steps || steps <= 0) return
+
+    try {
+      await api.post('/steps', {
+        memberId: member.id,
+        steps: steps,
+        source: 'manual'
+      })
+      await fetchSteps()
+      setLogSteps('')
+      onUpdate()
+    } catch (err) {
+      console.error('Failed to log steps:', err)
     }
   }
 
@@ -2217,8 +2261,8 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
           {isOwnProfile && <span className="text-violet-400 text-sm">Your Profile</span>}
         </div>
 
-        {/* Water & Exercise Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        {/* Water & Exercise & Steps Cards */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
           {/* Water Card */}
           <div className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
@@ -2274,6 +2318,41 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
             <p className="text-center text-white mt-2">
               {exerciseData.current} / 30 min
             </p>
+          </div>
+
+          {/* Steps Card */}
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <Activity className="w-5 h-5 text-green-400" />
+              {isOwnProfile && (
+                <button
+                  onClick={() => {
+                    setShowStepsModal(true)
+                    fetchSteps()
+                  }}
+                  className="text-green-400 text-sm hover:text-green-300"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <div className="relative w-24 h-24 mx-auto">
+              <ProgressRing
+                progress={(stepsData.total / stepsData.target) * 100}
+                size={96}
+                strokeWidth={8}
+                color="#22c55e"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-white font-bold text-lg">
+                  {stepsData.total >= 1000 ? `${(stepsData.total / 1000).toFixed(1)}k` : stepsData.total}
+                </span>
+              </div>
+            </div>
+            <p className="text-center text-white mt-2 text-sm">
+              {stepsData.total.toLocaleString()} / {stepsData.target.toLocaleString()}
+            </p>
+            <p className="text-center text-white/50 text-xs">steps</p>
           </div>
         </div>
 
@@ -2831,8 +2910,123 @@ function MemberDetailScreen({ member, currentMember, onBack, onUpdate }: {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Water Settings Modal */}
+      {/* Steps Modal */}
+      <AnimatePresence>
+        {showStepsModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowStepsModal(false)}
+          >
+            <motion.div
+              className="modal-content p-6 max-w-md max-h-[80vh] overflow-y-auto"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Steps Log</h3>
+                <button onClick={() => setShowStepsModal(false)} className="text-white/60 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Today's Summary */}
+              <div className="glass rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Activity className="w-6 h-6 text-green-400" />
+                  <div>
+                    <p className="text-white/70 text-sm">Today's Progress</p>
+                    <p className="text-white text-2xl font-bold">
+                      {stepsData.total.toLocaleString()} / {stepsData.target.toLocaleString()}
+                    </p>
+                    <p className="text-white/50 text-xs">steps</p>
+                  </div>
+                </div>
+                <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (stepsData.total / stepsData.target) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Manual Entry Form */}
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">Log Steps Manually</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={logSteps}
+                    onChange={(e) => setLogSteps(e.target.value)}
+                    placeholder="Enter step count"
+                    className="input-field flex-1"
+                    min="0"
+                  />
+                  <button
+                    onClick={handleLogSteps}
+                    disabled={!logSteps || parseInt(logSteps) <= 0}
+                    className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add
+                  </button>
+                </div>
+                <p className="text-white/40 text-xs mt-2">
+                  Steps from iOS Health app sync automatically
+                </p>
+              </div>
+
+              {/* Today's Entries */}
+              {stepsData.entries.length > 0 && (
+                <div>
+                  <h4 className="text-white/70 text-sm font-medium mb-3">Today's Entries</h4>
+                  <div className="space-y-2">
+                    {stepsData.entries.map((entry: any) => (
+                      <div
+                        key={entry.id}
+                        className={`glass rounded-lg p-3 flex items-center justify-between ${
+                          entry.source === 'healthkit' ? 'bg-green-500/10' : 'bg-violet-500/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {entry.source === 'healthkit' ? (
+                            <Heart className="w-5 h-5 text-green-400" />
+                          ) : (
+                            <Edit3 className="w-5 h-5 text-violet-400" />
+                          )}
+                          <div>
+                            <p className="text-white font-medium">
+                              {entry.steps.toLocaleString()} steps
+                            </p>
+                            <p className="text-white/50 text-xs">
+                              {entry.source === 'healthkit' ? 'HealthKit' : 'Manual'} • {new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {stepsData.entries.length === 0 && (
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/40 text-sm">No steps logged today</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Water Settings Modal */}
+      <AnimatePresence>
         {showWaterSettingsModal && (
           <motion.div
             className="modal-overlay"
