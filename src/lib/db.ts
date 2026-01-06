@@ -259,5 +259,19 @@ async function runMigrations() {
   } catch (error: unknown) {
     // Migration already applied or error, ignore
   }
+
+  // Update existing water goals from 2000ml to 3000ml with new peer-reviewed source
+  try {
+    await executeQuery(
+      `UPDATE goals
+       SET target_value = 3000,
+           description = 'Recommended daily intake: Men 3.7L (125 oz), Women 2.7L (91 oz), Teens 2-3L, Children 1-2L. Source: National Academies of Sciences - https://nap.nationalacademies.org/read/10925'
+       WHERE type = 'water'
+       AND target_value = 2000`,
+      []
+    )
+  } catch (error: unknown) {
+    // Migration already applied or error, ignore
+  }
 }
 
