@@ -4,9 +4,5 @@
 <dict>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>webcredentials:family-goal-tracker.vercel.app</string>
-	</array>
 </dict>
 </plist>
