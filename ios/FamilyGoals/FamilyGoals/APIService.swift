@@ -21,11 +21,10 @@ enum APIError: Error, LocalizedError {
 class APIService {
     static let shared = APIService()
     
-    // ⚠️ IMPORTANT: Update this URL after deploying to Vercel
-    // For local development: "http://localhost:3000/api"
-    // For production: "https://your-app.vercel.app/api"
+    // API Base URL - defaults to production Vercel deployment
+    // Can be overridden in UserDefaults with key "apiBaseURL" for testing
     private var baseURL: String {
-        UserDefaults.standard.string(forKey: "apiBaseURL") ?? "http://localhost:3000/api"
+        UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://family-goal-tracker.vercel.app/api"
     }
     
     var token: String?
