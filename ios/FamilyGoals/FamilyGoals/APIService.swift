@@ -120,7 +120,7 @@ class APIService {
         return try await request("/water?memberId=\(memberId)")
     }
     
-    func addWater(memberId: String, amountMl: Double) async throws -> [String: Any] {
+    func addWater(memberId: String, amountMl: Double) async throws -> SimpleResponse {
         return try await request("/water", method: "POST", body: [
             "memberId": memberId,
             "amount_ml": amountMl
@@ -132,7 +132,7 @@ class APIService {
         return try await request("/exercise?memberId=\(memberId)")
     }
     
-    func addExercise(memberId: String, durationMinutes: Int, activity: String, notes: String? = nil) async throws -> [String: Any] {
+    func addExercise(memberId: String, durationMinutes: Int, activity: String, notes: String? = nil) async throws -> SimpleResponse {
         var body: [String: Any] = [
             "memberId": memberId,
             "duration_minutes": durationMinutes,
@@ -153,13 +153,13 @@ class APIService {
         return try await request(endpoint)
     }
 
-    func syncSteps(memberId: String, steps: Int, date: String, source: String = "healthkit") async throws -> [String: Any] {
+    func syncSteps(memberId: String, steps: Int, date: String, source: String = "healthkit") async throws -> SimpleResponse {
         print("🌐 API syncSteps() called")
         print("   📋 Parameters: memberId=\(memberId), steps=\(steps), date=\(date), source=\(source)")
         print("   🔑 Token present: \(token != nil)")
         print("   🌐 Base URL: \(baseURL)")
 
-        let result: [String: Any] = try await request("/steps", method: "POST", body: [
+        let result: SimpleResponse = try await request("/steps", method: "POST", body: [
             "memberId": memberId,
             "steps": steps,
             "date": date,
@@ -171,7 +171,7 @@ class APIService {
     }
 
     // Goals
-    func completeGoal(goalId: String, memberId: String) async throws -> [String: Any] {
+    func completeGoal(goalId: String, memberId: String) async throws -> SimpleResponse {
         return try await request("/goals/\(goalId)/complete", method: "POST", body: [
             "memberId": memberId
         ])

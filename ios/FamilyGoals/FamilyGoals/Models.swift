@@ -124,4 +124,7 @@ struct StepsResponse: Codable {
     let unit: String?
 }
 
-
+struct SimpleResponse: Codable {
+    let success: Bool
+    let id: String?
+}
