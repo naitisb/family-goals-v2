@@ -87,7 +87,7 @@ struct Goal: Codable, Identifiable {
         if let boolValue = try? container.decodeIfPresent(Bool.self, forKey: .is_completed) {
             is_completed = boolValue
         } else if let intValue = try? container.decodeIfPresent(Int.self, forKey: .is_completed) {
-            is_completed = intValue.map { $0 != 0 }
+            is_completed = intValue != 0
         } else {
             is_completed = nil
         }
