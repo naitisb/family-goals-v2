@@ -143,7 +143,25 @@ class APIService {
         }
         return try await request("/exercise", method: "POST", body: body)
     }
-    
+
+    // Steps
+    func getSteps(memberId: String, date: String? = nil) async throws -> StepsResponse {
+        var endpoint = "/steps?memberId=\(memberId)"
+        if let date = date {
+            endpoint += "&date=\(date)"
+        }
+        return try await request(endpoint)
+    }
+
+    func syncSteps(memberId: String, steps: Int, date: String, source: String = "healthkit") async throws -> [String: Any] {
+        return try await request("/steps", method: "POST", body: [
+            "memberId": memberId,
+            "steps": steps,
+            "date": date,
+            "source": source
+        ])
+    }
+
     // Goals
     func completeGoal(goalId: String, memberId: String) async throws -> [String: Any] {
         return try await request("/goals/\(goalId)/complete", method: "POST", body: [

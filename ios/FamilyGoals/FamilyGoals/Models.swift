@@ -55,6 +55,15 @@ struct ExerciseEntry: Codable, Identifiable {
     let date: String
 }
 
+struct StepsEntry: Codable, Identifiable {
+    let id: String
+    let member_id: String
+    let steps: Int
+    let date: String
+    let source: String
+    let created_at: String
+}
+
 struct DashboardMember: Codable, Identifiable {
     let id: String
     let name: String
@@ -63,11 +72,12 @@ struct DashboardMember: Codable, Identifiable {
     let goals: [Goal]
     let water_progress: ProgressData
     let exercise_progress: ProgressData
+    let steps_progress: ProgressData
     let completed_count: Int
     let total_goals: Int
     let weekly_completed_count: Int
     let weekly_total_goals: Int
-    
+
     var avatarInitial: String {
         String(name.prefix(1)).uppercased()
     }
@@ -105,5 +115,12 @@ struct ExerciseResponse: Codable {
     let entries: [ExerciseEntry]
     let total: Int
     let target: Int
+}
+
+struct StepsResponse: Codable {
+    let entries: [StepsEntry]
+    let total: Int
+    let target: Int
+    let unit: String?
 }
 
