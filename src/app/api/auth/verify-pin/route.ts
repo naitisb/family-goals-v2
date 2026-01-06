@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       token,
       member: {
         id: member.id,
+        family_id: member.family_id,
         name: member.name,
         avatar_color: member.avatar_color,
         profile_photo_url: member.profile_photo_url
