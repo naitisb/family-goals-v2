@@ -37,6 +37,64 @@ struct Goal: Codable, Identifiable {
     var is_completed: Bool?
     let completion_value: Double?
     let completion_notes: String?
+
+    // Custom decoding to handle SQLite integer booleans (0/1)
+    enum CodingKeys: String, CodingKey {
+        case id, member_id, type, title, description, target_value, target_unit
+        case assigned_by, assigned_by_name, assigned_by_color, is_custom
+        case frequency, due_time, reminder_enabled, reminder_time
+        case is_completed, completion_value, completion_notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        member_id = try container.decode(String.self, forKey: .member_id)
+        type = try container.decode(String.self, forKey: .type)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        target_value = try container.decodeIfPresent(Double.self, forKey: .target_value)
+        target_unit = try container.decodeIfPresent(String.self, forKey: .target_unit)
+        assigned_by = try container.decodeIfPresent(String.self, forKey: .assigned_by)
+        assigned_by_name = try container.decodeIfPresent(String.self, forKey: .assigned_by_name)
+        assigned_by_color = try container.decodeIfPresent(String.self, forKey: .assigned_by_color)
+
+        // Decode is_custom as either Bool or Int
+        if let boolValue = try? container.decode(Bool.self, forKey: .is_custom) {
+            is_custom = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .is_custom) {
+            is_custom = intValue != 0
+        } else {
+            is_custom = false
+        }
+
+        frequency = try container.decode(String.self, forKey: .frequency)
+        due_time = try container.decodeIfPresent(String.self, forKey: .due_time)
+
+        // Decode reminder_enabled as either Bool or Int
+        if let boolValue = try? container.decode(Bool.self, forKey: .reminder_enabled) {
+            reminder_enabled = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .reminder_enabled) {
+            reminder_enabled = intValue != 0
+        } else {
+            reminder_enabled = false
+        }
+
+        reminder_time = try container.decodeIfPresent(String.self, forKey: .reminder_time)
+
+        // Decode is_completed as either Bool or Int
+        if let boolValue = try? container.decodeIfPresent(Bool.self, forKey: .is_completed) {
+            is_completed = boolValue
+        } else if let intValue = try? container.decodeIfPresent(Int.self, forKey: .is_completed) {
+            is_completed = intValue.map { $0 != 0 }
+        } else {
+            is_completed = nil
+        }
+
+        completion_value = try container.decodeIfPresent(Double.self, forKey: .completion_value)
+        completion_notes = try container.decodeIfPresent(String.self, forKey: .completion_notes)
+    }
 }
 
 struct WaterEntry: Codable, Identifiable {
