@@ -38,303 +38,11 @@ struct MemberDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Header
-                HStack {
-                    Button(action: onBack) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("Back")
-                        }
-                        .foregroundColor(.white.opacity(0.6))
-                    }
-                    
-                    Spacer()
-                    
-                    Text(isOwnProfile ? "My Goals" : "\(member.name)'s Goals")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Color.clear.frame(width: 60)
-                }
-                .padding(.horizontal)
-                
-                // Profile
-                VStack(spacing: 12) {
-                    Circle()
-                        .fill(Color(hex: member.avatar_color))
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Text(member.avatarInitial)
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                        )
-                    
-                    Text(member.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    
-                    if isOwnProfile {
-                        Text("Your Profile")
-                            .font(.caption)
-                            .foregroundColor(.purple)
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.white.opacity(0.05))
-                .cornerRadius(20)
-                .padding(.horizontal)
-                
-                // Water & Exercise
-                HStack(spacing: 16) {
-                    // Water
-                    VStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "drop.fill")
-                                .foregroundColor(.cyan)
-                            Button(action: { showWaterInfo = true }) {
-                                Image(systemName: "info.circle")
-                                    .font(.caption)
-                                    .foregroundColor(.cyan.opacity(0.6))
-                            }
-                            Spacer()
-                            if isOwnProfile {
-                                Button("+ Add") {
-                                    showWaterSheet = true
-                                }
-                                .font(.caption)
-                                .foregroundColor(.cyan)
-                            }
-                        }
-                        
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
-                                .frame(width: 80, height: 80)
-                            
-                            Circle()
-                                .trim(from: 0, to: min(1, waterData.current / waterData.target))
-                                .stroke(Color.cyan, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                .frame(width: 80, height: 80)
-                                .rotationEffect(.degrees(-90))
-                            
-                            Text("\(Int(waterData.current / waterData.target * 100))%")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-                        
-                        Text("\(String(format: "%.1f", waterData.current / 1000))L / \(String(format: "%.1f", waterData.target / 1000))L")
-                            .font(.caption)
-                            .foregroundColor(.white)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(16)
-                    
-                    // Exercise
-                    VStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "figure.run")
-                                .foregroundColor(.green)
-                            Button(action: { showExerciseInfo = true }) {
-                                Image(systemName: "info.circle")
-                                    .font(.caption)
-                                    .foregroundColor(.green.opacity(0.6))
-                            }
-                            Spacer()
-                            if isOwnProfile {
-                                Button("+ Add") {
-                                    showExerciseSheet = true
-                                }
-                                .font(.caption)
-                                .foregroundColor(.green)
-                            }
-                        }
-                        
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
-                                .frame(width: 80, height: 80)
-                            
-                            Circle()
-                                .trim(from: 0, to: min(1, exerciseData.current / exerciseData.target))
-                                .stroke(Color.green, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                .frame(width: 80, height: 80)
-                                .rotationEffect(.degrees(-90))
-                            
-                            VStack(spacing: 0) {
-                                Text("\(Int(exerciseData.current))")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                Text("min")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                        }
-                        
-                        Text("\(Int(exerciseData.current)) / 30 min")
-                            .font(.caption)
-                            .foregroundColor(.white)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(16)
-                }
-                .padding(.horizontal)
-
-                // Steps
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "figure.walk")
-                            .foregroundColor(.orange)
-                        Text("Daily Steps")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                        Button(action: { showStepsInfo = true }) {
-                            Image(systemName: "info.circle")
-                                .font(.caption)
-                                .foregroundColor(.orange.opacity(0.6))
-                        }
-                        Spacer()
-                    }
-
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
-                                .frame(width: 80, height: 80)
-
-                            Circle()
-                                .trim(from: 0, to: min(1, Double(stepsData.current) / Double(stepsData.target)))
-                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                .frame(width: 80, height: 80)
-                                .rotationEffect(.degrees(-90))
-
-                            Text("\(Int(Double(stepsData.current) / Double(stepsData.target) * 100))%")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(stepsData.current >= 1000 ? "\(String(format: "%.1f", Double(stepsData.current) / 1000))K" : "\(stepsData.current)")
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                Text("/ \(stepsData.target >= 1000 ? "\(stepsData.target / 1000)K" : "\(stepsData.target)") steps")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-
-                            if isOwnProfile && healthKitManager.isAuthorized {
-                                Button(action: {
-                                    Task {
-                                        await syncStepsFromHealthKit()
-                                    }
-                                }) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "arrow.triangle.2.circlepath")
-                                            .font(.caption)
-                                        Text("Sync from Health")
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.orange.opacity(0.6))
-                                    .cornerRadius(8)
-                                }
-                            }
-                        }
-
-                        Spacer()
-                    }
-                }
-                .padding()
-                .background(Color.white.opacity(0.05))
-                .cornerRadius(16)
-                .padding(.horizontal)
-
-                // Mindfulness
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "brain.head.profile")
-                            .foregroundColor(.purple)
-                        Text("Daily Mindfulness")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                        Button(action: { showMindfulnessInfo = true }) {
-                            Image(systemName: "info.circle")
-                                .font(.caption)
-                                .foregroundColor(.purple.opacity(0.6))
-                        }
-                        Spacer()
-                    }
-
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
-                                .frame(width: 80, height: 80)
-
-                            Circle()
-                                .trim(from: 0, to: min(1, Double(mindfulnessData.current) / Double(mindfulnessData.target)))
-                                .stroke(Color.purple, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                .frame(width: 80, height: 80)
-                                .rotationEffect(.degrees(-90))
-
-                            Text("\(Int(Double(mindfulnessData.current) / Double(mindfulnessData.target) * 100))%")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text("\(mindfulnessData.current)")
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                Text("/ \(mindfulnessData.target) min")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-
-                            if isOwnProfile {
-                                Button(action: {
-                                    showMindfulnessSheet = true
-                                }) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.caption)
-                                        Text("Log Session")
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.purple.opacity(0.6))
-                                    .cornerRadius(8)
-                                }
-                            }
-                        }
-
-                        Spacer()
-                    }
-                }
-                .padding()
-                .background(Color.white.opacity(0.05))
-                .cornerRadius(16)
-                .padding(.horizontal)
+                headerSection
+                profileSection
+                waterAndExerciseWidgets
+                stepsWidget
+                mindfulnessWidget
 
                 // Daily Goals
                 if !dailyGoals.isEmpty {
@@ -532,6 +240,315 @@ struct MemberDetailView: View {
             print("Failed to sync steps from HealthKit: \(error)")
         }
     }
+
+    // MARK: - Computed Properties for View Components
+
+    private var headerSection: some View {
+        HStack {
+            Button(action: onBack) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                    Text("Back")
+                }
+                .foregroundColor(.white.opacity(0.6))
+            }
+
+            Spacer()
+
+            Text(isOwnProfile ? "My Goals" : "\(member.name)'s Goals")
+                .font(.headline)
+                .foregroundColor(.white)
+
+            Spacer()
+
+            Color.clear.frame(width: 60)
+        }
+        .padding(.horizontal)
+    }
+
+    private var profileSection: some View {
+        VStack(spacing: 12) {
+            Circle()
+                .fill(Color(hex: member.avatar_color))
+                .frame(width: 80, height: 80)
+                .overlay(
+                    Text(member.avatarInitial)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                )
+
+            Text(member.name)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+
+            if isOwnProfile {
+                Text("Your Profile")
+                    .font(.caption)
+                    .foregroundColor(.purple)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(20)
+        .padding(.horizontal)
+    }
+
+    private var waterAndExerciseWidgets: some View {
+        HStack(spacing: 16) {
+            waterWidget
+            exerciseWidget
+        }
+        .padding(.horizontal)
+    }
+
+    private var waterWidget: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "drop.fill")
+                    .foregroundColor(.cyan)
+                Button(action: { showWaterInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundColor(.cyan.opacity(0.6))
+                }
+                Spacer()
+                if isOwnProfile {
+                    Button("+ Add") {
+                        showWaterSheet = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.cyan)
+                }
+            }
+
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                    .frame(width: 80, height: 80)
+
+                Circle()
+                    .trim(from: 0, to: min(1, waterData.current / waterData.target))
+                    .stroke(Color.cyan, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: 80, height: 80)
+                    .rotationEffect(.degrees(-90))
+
+                Text("\(Int(waterData.current / waterData.target * 100))%")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+
+            Text("\(String(format: "%.1f", waterData.current / 1000))L / \(String(format: "%.1f", waterData.target / 1000))L")
+                .font(.caption)
+                .foregroundColor(.white)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(16)
+    }
+
+    private var exerciseWidget: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "figure.run")
+                    .foregroundColor(.green)
+                Button(action: { showExerciseInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundColor(.green.opacity(0.6))
+                }
+                Spacer()
+                if isOwnProfile {
+                    Button("+ Add") {
+                        showExerciseSheet = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.green)
+                }
+            }
+
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                    .frame(width: 80, height: 80)
+
+                Circle()
+                    .trim(from: 0, to: min(1, exerciseData.current / exerciseData.target))
+                    .stroke(Color.green, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: 80, height: 80)
+                    .rotationEffect(.degrees(-90))
+
+                VStack(spacing: 0) {
+                    Text("\(Int(exerciseData.current))")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Text("min")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.5))
+                }
+            }
+
+            Text("\(Int(exerciseData.current)) / 30 min")
+                .font(.caption)
+                .foregroundColor(.white)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(16)
+    }
+
+    private var stepsWidget: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "figure.walk")
+                    .foregroundColor(.orange)
+                Text("Daily Steps")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                Button(action: { showStepsInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundColor(.orange.opacity(0.6))
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                        .frame(width: 80, height: 80)
+
+                    Circle()
+                        .trim(from: 0, to: min(1, Double(stepsData.current) / Double(stepsData.target)))
+                        .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 80, height: 80)
+                        .rotationEffect(.degrees(-90))
+
+                    Text("\(Int(Double(stepsData.current) / Double(stepsData.target) * 100))%")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(stepsData.current >= 1000 ? "\(String(format: "%.1f", Double(stepsData.current) / 1000))K" : "\(stepsData.current)")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        Text("/ \(stepsData.target >= 1000 ? "\(stepsData.target / 1000)K" : "\(stepsData.target)") steps")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+
+                    if isOwnProfile && healthKitManager.isAuthorized {
+                        Button(action: {
+                            Task {
+                                await syncStepsFromHealthKit()
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.caption)
+                                Text("Sync Health Data")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.orange)
+                        }
+                    } else if isOwnProfile && HealthKitManager.isHealthKitAvailable() {
+                        Button("Connect Health App") {
+                            Task {
+                                do {
+                                    try await healthKitManager.requestAuthorization()
+                                    healthKitManager.checkAuthorizationStatus()
+                                } catch {
+                                    print("Authorization error: \(error)")
+                                }
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundColor(.orange.opacity(0.7))
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(16)
+        .padding(.horizontal)
+    }
+
+    private var mindfulnessWidget: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .foregroundColor(.purple)
+                Text("Daily Mindfulness")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                Button(action: { showMindfulnessInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundColor(.purple.opacity(0.6))
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                        .frame(width: 80, height: 80)
+
+                    Circle()
+                        .trim(from: 0, to: min(1, Double(mindfulnessData.current) / Double(mindfulnessData.target)))
+                        .stroke(Color.purple, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 80, height: 80)
+                        .rotationEffect(.degrees(-90))
+
+                    Text("\(Int(Double(mindfulnessData.current) / Double(mindfulnessData.target) * 100))%")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(mindfulnessData.current)")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        Text("/ \(mindfulnessData.target) min")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+
+                    if isOwnProfile {
+                        Button(action: {
+                            showMindfulnessSheet = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.caption)
+                                Text("Log Session")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.purple)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(16)
+        .padding(.horizontal)
+    }
 }
 
 // MARK: - Info Sheet
@@ -683,8 +700,8 @@ struct StepsInfoContent: View {
 
 // MARK: - Mindfulness Info Content
 struct MindfulnessInfoContent: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private var benefitsSection: some View {
+        Group {
             Text("Benefits of Mindfulness Practice")
                 .font(.headline)
                 .foregroundColor(.purple)
@@ -698,7 +715,11 @@ struct MindfulnessInfoContent: View {
                 BulletPoint(text: "Improves sleep quality")
             }
             .foregroundColor(.white.opacity(0.9))
+        }
+    }
 
+    private var dbtSection: some View {
+        Group {
             Text("DBT Mindfulness Skills")
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -710,14 +731,22 @@ struct MindfulnessInfoContent: View {
                 .foregroundColor(.white.opacity(0.7))
 
             VStack(alignment: .leading, spacing: 6) {
-                BulletPoint(text: "Observe: Notice your thoughts and feelings without judgment", size: .caption)
-                BulletPoint(text: "Describe: Put words to your experience", size: .caption)
-                BulletPoint(text: "Participate: Fully engage in the present moment", size: .caption)
-                BulletPoint(text: "One-mindfully: Focus on one thing at a time", size: .caption)
-                BulletPoint(text: "Non-judgmentally: Accept without labeling as good/bad", size: .caption)
-                BulletPoint(text: "Effectively: Do what works in the situation", size: .caption)
+                BulletPoint(text: "Observe: Notice without judgment", size: .caption)
+                BulletPoint(text: "Describe: Put words to experience", size: .caption)
+                BulletPoint(text: "Participate: Engage in present", size: .caption)
+                BulletPoint(text: "One-mindfully: Focus on one thing", size: .caption)
+                BulletPoint(text: "Non-judgmentally: Accept as is", size: .caption)
+                BulletPoint(text: "Effectively: Do what works", size: .caption)
             }
             .foregroundColor(.white.opacity(0.8))
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            benefitsSection
+
+            dbtSection
 
             Text("Practice Options")
                 .font(.subheadline)
@@ -726,16 +755,15 @@ struct MindfulnessInfoContent: View {
                 .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 6) {
-                BulletPoint(text: "Focused breathing meditation", size: .caption)
+                BulletPoint(text: "Breathing meditation", size: .caption)
                 BulletPoint(text: "Body scan", size: .caption)
                 BulletPoint(text: "Mindful walking", size: .caption)
-                BulletPoint(text: "Loving-kindness meditation", size: .caption)
-                BulletPoint(text: "DBT mindfulness exercises", size: .caption)
-                BulletPoint(text: "Mindful eating", size: .caption)
+                BulletPoint(text: "Loving-kindness", size: .caption)
+                BulletPoint(text: "DBT exercises", size: .caption)
             }
             .foregroundColor(.white.opacity(0.8))
 
-            Text("15 minutes daily is recommended for consistent benefits.")
+            Text("15 minutes daily recommended")
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.7))
                 .padding(.top, 4)
@@ -743,18 +771,7 @@ struct MindfulnessInfoContent: View {
             Link(destination: URL(string: "https://jamanetwork.com/journals/jamapsychiatry/fullarticle/2798431")!) {
                 HStack {
                     Image(systemName: "link")
-                    Text("JAMA Psychiatry: Mindfulness for Anxiety")
-                        .underline()
-                }
-                .font(.caption)
-                .foregroundColor(.purple)
-            }
-
-            Link(destination: URL(string: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6671893/")!) {
-                HStack {
-                    Image(systemName: "link")
-                    Text("Mindfulness-Based Interventions: Systematic Review")
-                        .underline()
+                    Text("JAMA Psychiatry Study")
                 }
                 .font(.caption)
                 .foregroundColor(.purple)
