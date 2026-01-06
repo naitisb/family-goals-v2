@@ -46,13 +46,23 @@ Signing & Capabilities
 2. Grant permission for Steps (Read) and Water (Read/Write)
 3. The button should change to "Sync Health Data"
 
-**Manual check:**
-1. Open **Settings** app on iPhone
-2. Go to **Privacy & Security** → **Health**
-3. Select **Family Goals**
-4. Verify:
+**IMPORTANT: HealthKit permissions are NOT in the Settings app!**
+
+HealthKit permissions are managed exclusively through the **Health app**:
+
+1. Open the **Health** app on iPhone
+2. Tap your **profile picture** (top right)
+3. Scroll down to **"Apps & Services"**
+4. Tap **"Family Goals"**
+5. Toggle ON permissions:
    - Steps: **Allow to Read** ✓
    - Water: **Allow to Read and Write** ✓
+
+**Why not in Settings?**
+Apple requires all HealthKit data permissions to be managed through the Health app for privacy and security reasons. You will NOT find HealthKit permissions in:
+- ❌ Settings → Privacy & Security
+- ❌ Settings → Family Goals
+- ✅ Health app → Profile → Apps & Services → Family Goals
 
 ### 4. No Step Data in Health App
 
