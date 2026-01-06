@@ -242,6 +242,10 @@ struct DashboardView: View {
         .task {
             await loadDashboard()
 
+            // Check authorization status and sync if authorized
+            healthKitManager.checkAuthorizationStatus()
+            print("HealthKit authorized: \(healthKitManager.isAuthorized)")
+
             if healthKitManager.isAuthorized {
                 await syncStepsFromHealthKit()
             }

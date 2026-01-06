@@ -12,9 +12,26 @@ class HealthKitManager: ObservableObject {
     let healthStore = HKHealthStore()
     @Published var isAuthorized = false
 
+    init() {
+        // Check authorization status on init
+        checkAuthorizationStatus()
+    }
+
     // Check if HealthKit is available on this device
     static func isHealthKitAvailable() -> Bool {
         return HKHealthStore.isHealthDataAvailable()
+    }
+
+    // Check current authorization status
+    func checkAuthorizationStatus() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            isAuthorized = false
+            return
+        }
+
+        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        let status = healthStore.authorizationStatus(for: stepType)
+        isAuthorized = (status == .sharingAuthorized)
     }
 
     // Request authorization to read step count data

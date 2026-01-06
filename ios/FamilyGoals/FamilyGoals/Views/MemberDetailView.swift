@@ -376,7 +376,49 @@ struct WaterSheet: View {
                         .cornerRadius(8)
                     }
                 }
-                
+
+                // Water Intake Recommendations
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.cyan.opacity(0.7))
+                        Text("Daily Water Recommendations")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.cyan)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("• Adult Men: 3.7L (125 oz)")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                        Text("• Adult Women: 2.7L (91 oz)")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                        Text("• Teenagers: 2-3L")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                        Text("• Children: 1-2L")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+
+                    Link(destination: URL(string: "https://nap.nationalacademies.org/read/10925")!) {
+                        HStack(spacing: 4) {
+                            Text("Source: National Academies of Sciences")
+                                .font(.caption2)
+                                .foregroundColor(.cyan.opacity(0.8))
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption2)
+                                .foregroundColor(.cyan.opacity(0.8))
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.cyan.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.horizontal)
+
                 Button(action: {
                     Task { await onAdd() }
                 }) {
