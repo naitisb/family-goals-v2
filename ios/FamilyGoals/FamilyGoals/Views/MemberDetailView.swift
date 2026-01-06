@@ -2,9 +2,10 @@ import SwiftUI
 
 struct MemberDetailView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var healthKitManager: HealthKitManager
     let member: DashboardMember
     let onBack: () -> Void
-    
+
     @State private var waterData: (current: Double, target: Double) = (0, 2000)
     @State private var exerciseData: (current: Double, target: Double) = (0, 30)
     @State private var goals: [Goal] = []
@@ -247,6 +248,18 @@ struct MemberDetailView: View {
     private func addWater() async {
         do {
             _ = try await APIService.shared.addWater(memberId: member.id, amountMl: waterAmount)
+
+            // Also save to HealthKit if authorized
+            if healthKitManager.isAuthorized {
+                do {
+                    try await healthKitManager.saveWater(amountML: waterAmount)
+                    print("Saved \(waterAmount)ml water to HealthKit")
+                } catch {
+                    print("Failed to save water to HealthKit: \(error)")
+                    // Don't fail the whole operation if HealthKit save fails
+                }
+            }
+
             let response = try await APIService.shared.getWater(memberId: member.id)
             await MainActor.run {
                 waterData = (response.total, response.target)

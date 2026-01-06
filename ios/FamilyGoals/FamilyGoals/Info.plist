@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Family Goals would like to access your step count to help you track your daily activity goals.</string>
+	<string>Family Goals would like to read your step count and water intake to help you track your daily activity and hydration goals.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Family Goals would like to save your water intake to the Health app so all your health data stays in sync.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

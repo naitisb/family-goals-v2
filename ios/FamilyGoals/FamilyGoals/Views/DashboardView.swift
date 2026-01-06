@@ -8,6 +8,7 @@ struct DashboardView: View {
     @State private var dashboard: [DashboardMember] = []
     @State private var isLoading = true
     @State private var isSyncingSteps = false
+    @State private var isSyncingWater = false
     @State private var syncErrorMessage: String?
     @State private var showSyncSuccess = false
     
@@ -329,6 +330,42 @@ struct DashboardView: View {
 
             if healthKitManager.isAuthorized {
                 await syncStepsFromHealthKit()
+                await syncWaterFromHealthKit()
+            }
+        }
+    }
+
+    private func syncWaterFromHealthKit() async {
+        await MainActor.run {
+            isSyncingWater = true
+        }
+
+        do {
+            guard let memberId = appState.currentMember?.id else {
+                await MainActor.run {
+                    isSyncingWater = false
+                }
+                return
+            }
+
+            print("Fetching water from HealthKit...")
+            let waterML = try await healthKitManager.fetchTodayWater()
+            print("Fetched \(waterML)ml water from HealthKit")
+
+            // Only sync if there's water data in HealthKit
+            if waterML > 0 {
+                // Note: This is a read-only sync from HealthKit to app
+                // We don't overwrite app data, just inform the user
+                print("HealthKit has \(waterML)ml water for today")
+            }
+
+            await MainActor.run {
+                isSyncingWater = false
+            }
+        } catch {
+            print("Failed to sync water from HealthKit: \(error)")
+            await MainActor.run {
+                isSyncingWater = false
             }
         }
     }
