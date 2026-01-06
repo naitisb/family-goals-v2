@@ -8,6 +8,7 @@ struct MemberDetailView: View {
 
     @State private var waterData: (current: Double, target: Double) = (0, 2000)
     @State private var exerciseData: (current: Double, target: Double) = (0, 30)
+    @State private var stepsData: (current: Int, target: Int) = (0, 10000)
     @State private var goals: [Goal] = []
     @State private var showWaterSheet = false
     @State private var showExerciseSheet = false
@@ -20,7 +21,7 @@ struct MemberDetailView: View {
     }
     
     var dailyGoals: [Goal] {
-        goals.filter { $0.frequency != "weekly" && $0.type != "water" && $0.type != "exercise" }
+        goals.filter { $0.frequency != "weekly" && $0.type != "water" && $0.type != "exercise" && $0.type != "steps" }
     }
     
     var weeklyGoals: [Goal] {
@@ -169,7 +170,77 @@ struct MemberDetailView: View {
                     .cornerRadius(16)
                 }
                 .padding(.horizontal)
-                
+
+                // Steps
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "figure.walk")
+                            .foregroundColor(.orange)
+                        Text("Daily Steps")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                                .frame(width: 80, height: 80)
+
+                            Circle()
+                                .trim(from: 0, to: min(1, Double(stepsData.current) / Double(stepsData.target)))
+                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                                .frame(width: 80, height: 80)
+                                .rotationEffect(.degrees(-90))
+
+                            Text("\(Int(Double(stepsData.current) / Double(stepsData.target) * 100))%")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(stepsData.current >= 1000 ? "\(String(format: "%.1f", Double(stepsData.current) / 1000))K" : "\(stepsData.current)")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                Text("/ \(stepsData.target >= 1000 ? "\(stepsData.target / 1000)K" : "\(stepsData.target)") steps")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+
+                            if isOwnProfile && healthKitManager.isAuthorized {
+                                Button(action: {
+                                    Task {
+                                        await syncStepsFromHealthKit()
+                                    }
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                            .font(.caption)
+                                        Text("Sync from Health")
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.orange.opacity(0.6))
+                                    .cornerRadius(8)
+                                }
+                            }
+                        }
+
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(16)
+                .padding(.horizontal)
+
                 // Daily Goals
                 if !dailyGoals.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
@@ -225,6 +296,7 @@ struct MemberDetailView: View {
         .onAppear {
             waterData = (member.water_progress.current, member.water_progress.target)
             exerciseData = (member.exercise_progress.current, member.exercise_progress.target)
+            stepsData = (Int(member.steps_progress.current), Int(member.steps_progress.target))
             goals = member.goals
         }
     }
@@ -284,6 +356,31 @@ struct MemberDetailView: View {
             }
         } catch {
             print("Failed to add exercise: \(error)")
+        }
+    }
+
+    private func syncStepsFromHealthKit() async {
+        guard isOwnProfile && healthKitManager.isAuthorized else { return }
+
+        do {
+            let steps = try await healthKitManager.fetchTodaySteps()
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let today = dateFormatter.string(from: Date())
+
+            _ = try await APIService.shared.syncSteps(
+                memberId: member.id,
+                steps: steps,
+                date: today,
+                source: "healthkit"
+            )
+
+            let response = try await APIService.shared.getSteps(memberId: member.id, date: today)
+            await MainActor.run {
+                stepsData = (response.total, response.target)
+            }
+        } catch {
+            print("Failed to sync steps from HealthKit: \(error)")
         }
     }
 }
