@@ -386,6 +386,7 @@ struct DashboardView: View {
     }
 
     private func syncStepsFromHealthKit() async {
+        print("\n🔄 ========== SYNC STEPS STARTED ==========")
         await MainActor.run {
             isSyncingSteps = true
             syncErrorMessage = nil
@@ -394,6 +395,7 @@ struct DashboardView: View {
 
         do {
             guard let memberId = appState.currentMember?.id else {
+                print("❌ No member selected - cannot sync")
                 await MainActor.run {
                     isSyncingSteps = false
                     syncErrorMessage = "No member selected"
@@ -401,24 +403,39 @@ struct DashboardView: View {
                 return
             }
 
-            print("Fetching steps from HealthKit...")
+            print("👤 Member ID: \(memberId)")
+            print("🔐 HealthKit authorized: \(healthKitManager.isAuthorized)")
+
+            if !healthKitManager.isAuthorized {
+                print("❌ HealthKit is not authorized - cannot fetch steps")
+                await MainActor.run {
+                    isSyncingSteps = false
+                    syncErrorMessage = "HealthKit not authorized"
+                }
+                return
+            }
+
+            print("📱 Calling fetchTodaySteps()...")
             let steps = try await healthKitManager.fetchTodaySteps()
-            print("Fetched \(steps) steps from HealthKit")
+            print("✅ Fetched \(steps) steps from HealthKit")
 
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             let date = dateFormatter.string(from: Date())
 
-            print("Syncing \(steps) steps to server for date \(date)...")
+            print("📤 Syncing to server: memberId=\(memberId), steps=\(steps), date=\(date)")
             try await APIService.shared.syncSteps(memberId: memberId, steps: Int(steps), date: date)
-            print("Successfully synced steps to server")
+            print("✅ Successfully synced steps to server")
 
+            print("🔄 Reloading dashboard...")
             await loadDashboard()
+            print("✅ Dashboard reloaded")
 
             await MainActor.run {
                 isSyncingSteps = false
                 showSyncSuccess = true
             }
+            print("✅ ========== SYNC STEPS COMPLETED ==========\n")
 
             // Hide success message after 2 seconds
             try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -426,12 +443,17 @@ struct DashboardView: View {
                 showSyncSuccess = false
             }
         } catch {
-            print("Failed to sync steps from HealthKit: \(error)")
+            print("❌ ========== SYNC STEPS FAILED ==========")
+            print("❌ Error: \(error)")
+            print("❌ Error type: \(type(of: error))")
+            print("❌ Localized description: \(error.localizedDescription)")
+
             let errorMsg = (error as? HealthKitError)?.localizedDescription ?? error.localizedDescription
             await MainActor.run {
                 isSyncingSteps = false
                 syncErrorMessage = errorMsg
             }
+            print("❌ ==========================================\n")
 
             // Hide error message after 3 seconds
             try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -474,4 +496,5 @@ struct ProgressBar: View {
     DashboardView { _ in }
         .environmentObject(AppState())
 }
+
 

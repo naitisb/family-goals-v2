@@ -154,12 +154,20 @@ class APIService {
     }
 
     func syncSteps(memberId: String, steps: Int, date: String, source: String = "healthkit") async throws -> [String: Any] {
-        return try await request("/steps", method: "POST", body: [
+        print("🌐 API syncSteps() called")
+        print("   📋 Parameters: memberId=\(memberId), steps=\(steps), date=\(date), source=\(source)")
+        print("   🔑 Token present: \(token != nil)")
+        print("   🌐 Base URL: \(baseURL)")
+
+        let result: [String: Any] = try await request("/steps", method: "POST", body: [
             "memberId": memberId,
             "steps": steps,
             "date": date,
             "source": source
         ])
+
+        print("✅ API syncSteps() success: \(result)")
+        return result
     }
 
     // Goals
@@ -169,4 +177,5 @@ class APIService {
         ])
     }
 }
+
 

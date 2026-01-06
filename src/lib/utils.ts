@@ -90,3 +90,4 @@ export const GRADIENT_THEMES = [
   { id: 'midnight', name: 'Midnight', value: 'linear-gradient(135deg, #0a0a1f 0%, #1a1a3d 30%, #2d2d5a 70%, #0a0a1f 100%)' },
 ]
 
+
