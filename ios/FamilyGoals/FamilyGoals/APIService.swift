@@ -97,7 +97,15 @@ class APIService {
             "password": password
         ])
     }
-    
+
+    func register(familyName: String, password: String, members: [[String: Any]]) async throws -> LoginResponse {
+        return try await request("/auth/register", method: "POST", body: [
+            "familyName": familyName,
+            "password": password,
+            "members": members
+        ])
+    }
+
     func verifyPin(memberId: String, pin: String) async throws -> PinResponse {
         return try await request("/auth/verify-pin", method: "POST", body: [
             "memberId": memberId,

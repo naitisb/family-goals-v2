@@ -7,7 +7,8 @@ struct LoginView: View {
     @State private var showPassword = false
     @State private var isLoading = false
     @State private var errorMessage: String?
-    
+    @State private var showingRegister = false
+
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -90,8 +91,24 @@ struct LoginView: View {
                 .disabled(isLoading || familyName.isEmpty || password.isEmpty)
             }
             .padding(.horizontal, 32)
-            
+
+            // Sign Up Button
+            Button(action: { showingRegister = true }) {
+                HStack(spacing: 4) {
+                    Text("Don't have an account?")
+                        .foregroundColor(.white.opacity(0.6))
+                    Text("Sign Up")
+                        .foregroundColor(.purple)
+                        .fontWeight(.semibold)
+                }
+                .font(.subheadline)
+            }
+
             Spacer()
+        }
+        .sheet(isPresented: $showingRegister) {
+            RegisterView()
+                .environmentObject(appState)
         }
     }
     
