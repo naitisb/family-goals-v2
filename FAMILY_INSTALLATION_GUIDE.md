@@ -99,7 +99,7 @@ TestFlight is Apple's official beta testing platform - perfect for distributing 
    - Click **+** to create group
    - Name it "Family" or "Internal Testers"
    - Add build by clicking **+** next to Builds
-   - Select your build (e.g., 1.0.0 (1))
+   - Select your build (e.g., 1.0.0d (1))
    - Add testers (must have "Admin", "App Manager", or "Developer" role in App Store Connect)
 
 2. **Create External Testing Group (For family members):**

@@ -205,23 +205,47 @@ struct DashboardView: View {
                                         }
                                         .disabled(isSyncingSteps)
                                     } else {
-                                        Button(action: {
-                                            Task {
-                                                try? await healthKitManager.requestAuthorization()
+                                        VStack(spacing: 8) {
+                                            Button(action: {
+                                                Task {
+                                                    do {
+                                                        try await healthKitManager.requestAuthorization()
+                                                        // Recheck after a delay to see if permissions were granted
+                                                        try await Task.sleep(nanoseconds: 1_000_000_000)
+                                                        healthKitManager.checkAuthorizationStatus()
+                                                    } catch {
+                                                        print("Authorization error: \(error)")
+                                                    }
+                                                }
+                                            }) {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "heart.text.square")
+                                                        .font(.caption)
+                                                    Text("Connect Health App")
+                                                        .font(.caption)
+                                                        .fontWeight(.medium)
+                                                }
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(Color.orange.opacity(0.6))
+                                                .cornerRadius(8)
                                             }
-                                        }) {
-                                            HStack(spacing: 6) {
-                                                Image(systemName: "heart.text.square")
-                                                    .font(.caption)
-                                                Text("Connect Health App")
-                                                    .font(.caption)
-                                                    .fontWeight(.medium)
+
+                                            // Show Settings link if user previously denied
+                                            Button(action: {
+                                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                                    UIApplication.shared.open(url)
+                                                }
+                                            }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "gear")
+                                                        .font(.caption2)
+                                                    Text("Enable in Settings")
+                                                        .font(.caption2)
+                                                }
+                                                .foregroundColor(.white.opacity(0.6))
                                             }
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 8)
-                                            .background(Color.orange.opacity(0.6))
-                                            .cornerRadius(8)
                                         }
                                     }
                                 }
