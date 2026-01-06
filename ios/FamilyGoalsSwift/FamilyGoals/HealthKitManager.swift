@@ -5,7 +5,7 @@
 //  iOS HealthKit integration for step tracking
 //
 
-import SwiftUI
+import Foundation
 import HealthKit
 
 class HealthKitManager: ObservableObject {
